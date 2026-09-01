@@ -163,6 +163,9 @@
     <string name="quit_routine_creation_question">Quit routine creation?</string>
     <string name="warning_delete_exercise_from_routine">Warning! Deleting exercises from existing routines will unlink all exercises of derivative workouts.</string>
     <string name="reorder">Reorder</string>
+    <string name="add_superset">Add superset</string>
+    <string name="remove_superset">Remove superset</string>
+    <string name="weight_increase_desc"># Weight increase\n\nIt is the amount of weight automatically added to the suggestion for your next session, so you do not have to remember when to go heavier.\n\nWhile training, tap the checkbox of a set once to mark it as done. Tap it a second time to mark it as *missed reps*: the set still counts as trained, but it tells LibreFit you did not reach the planned repetitions.\n\nWhen you complete **every** set of this exercise and none of them is marked as *missed reps*, the next time you meet the exercise its previous performance shows an arrow with the increased load. Tapping the previous performance fills the set with that load.\n\nIf even a single set is left unchecked or is marked as *missed reps*, the load stays the same, so you get another chance at the same weight.\n\nSet it to zero to disable the progression for this exercise.</string>
 
 
     <!-- Error screen-->

@@ -203,6 +203,7 @@ fun SharedTransitionScope.ExerciseCard(
     updateExerciseNotes: (String, Long) -> Unit,
     updateExerciseRestTime: (Int, Long) -> Unit,
     updateExerciseSetMode: (SetMode, Long) -> Unit,
+    updateExerciseSupersetGroup: (Long?, Long) -> Unit,
     updateSetTime: (Int, Long) -> Unit,
     updateSetReps: (Int, Long) -> Unit,
     updateSetLoad: (Weight, Long) -> Unit,
@@ -316,6 +317,30 @@ fun SharedTransitionScope.ExerciseCard(
                                         },
                                         onClick = {
                                             onReorderRequest()
+                                            showMenu = false
+                                        }
+                                    )
+                                    DropdownMenuItem(
+                                        text = {
+                                            Text(
+                                                if (exerciseWithSets.exercise.supersetGroupId != null) {
+                                                    stringResource(R.string.remove_superset)
+                                                } else {
+                                                    stringResource(R.string.add_superset)
+                                                }
+                                            )
+                                        },
+                                        leadingIcon = {
+                                            Icon(
+                                                painterResource(R.drawable.ic_more_options),
+                                                stringResource(R.string.add_superset)
+                                            )
+                                        },
+                                        onClick = {
+                                            updateExerciseSupersetGroup(
+                                                exerciseWithSets.exercise.supersetGroupId,
+                                                exerciseWithSets.exercise.id
+                                            )
                                             showMenu = false
                                         }
                                     )
@@ -1041,6 +1066,7 @@ private fun ExerciseCardPreview() {
                     updateExerciseSetMode = { setMode, _ ->
                         e.value = e.value.copy(exercise = e.value.exercise.copy(setMode = setMode))
                     },
+                    updateExerciseSupersetGroup = { _, _ -> },
                     updateSetTime = { time, id ->
                         e.value = e.value.copy(
                             sets = e.value.sets.map {

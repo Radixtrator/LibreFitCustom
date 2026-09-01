@@ -134,6 +134,7 @@ fun SharedTransitionScope.EditWorkoutScreen(
         updateExerciseNotes = viewModel::updateExerciseNotes,
         updateExerciseRestTime = viewModel::updateExerciseRestTime,
         updateExerciseSetMode = viewModel::updateExerciseSetMode,
+        updateExerciseSupersetGroup = viewModel::updateExerciseSupersetGroup,
         moveExercise = viewModel::moveExercise,
         saveWorkoutWithExercisesInDB = viewModel::saveWorkoutWithExercisesInDB,
     )
@@ -165,6 +166,7 @@ private fun SharedTransitionScope.EditWorkoutScreenContent(
     updateExerciseNotes: (String, Long) -> Unit,
     updateExerciseRestTime: (Int, Long) -> Unit,
     updateExerciseSetMode: (SetMode, Long) -> Unit,
+    updateExerciseSupersetGroup: (Long?, Long) -> Unit,
     moveExercise: (Int, Int) -> Unit,
     saveWorkoutWithExercisesInDB: () -> Unit
 ) {
@@ -369,6 +371,7 @@ private fun SharedTransitionScope.EditWorkoutScreenContent(
                             updateExerciseNotes = updateExerciseNotes,
                             updateExerciseRestTime = updateExerciseRestTime,
                             updateExerciseSetMode = updateExerciseSetMode,
+                            updateExerciseSupersetGroup = updateExerciseSupersetGroup,
                             showInfo = onInfoModeChange,
                             updateSetTime = updateSetTime,
                             updateSetReps = updateSetReps,
@@ -440,6 +443,7 @@ private fun EditWorkoutScreenPreview() {
                     updateExerciseNotes = { _, _ -> },
                     updateExerciseRestTime = { _, _ -> },
                     updateExerciseSetMode = { _, _ -> },
+                    updateExerciseSupersetGroup = { _, _ -> },
                     moveExercise = { _, _ -> },
                     updateSetTime = { _, _ -> },
                     updateSetReps = { _, _ -> },

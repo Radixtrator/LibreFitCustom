@@ -12,6 +12,8 @@ import com.google.common.truth.Truth.assertThat
 import org.junit.Test
 import org.librefit.ui.models.UiExercise
 import org.librefit.ui.models.UiExerciseWithSets
+import org.librefit.ui.models.mappers.toEntity
+import org.librefit.ui.models.mappers.toUi
 import org.librefit.ui.models.moveExercise
 import org.librefit.ui.models.withNormalizedExercisePositions
 
@@ -47,5 +49,16 @@ class EditWorkoutScreenViewModelTest {
 
         assertThat(normalized.map { it.exercise.id }).containsExactly(22L, 11L).inOrder()
         assertThat(normalized.map { it.exercise.position }).containsExactly(0, 1).inOrder()
+    }
+
+    @Test
+    fun `superset group id survives mapper round trip`() {
+        val uiExercise = UiExercise(id = 99L, supersetGroupId = 42L)
+
+        val entity = uiExercise.toEntity()
+        val roundTrip = entity.toUi()
+
+        assertThat(entity.supersetGroupId).isEqualTo(42L)
+        assertThat(roundTrip.supersetGroupId).isEqualTo(42L)
     }
 }

@@ -417,6 +417,26 @@ class WorkoutScreenViewModel @Inject constructor(
         syncToRepository()
     }
 
+    fun updateExerciseSupersetGroup(groupId: Long?, id: Long) {
+        _exercises.update { currentExercises ->
+            currentExercises.map { eWs ->
+                if (eWs.exercise.id == id) {
+                    val newGroup = if (groupId != null) null else {
+                        val previousWithGroup = currentExercises
+                            .filter { it.exercise.id != id }
+                            .lastOrNull { it.exercise.supersetGroupId != null }
+                            ?.exercise?.supersetGroupId
+                        previousWithGroup ?: Random.nextLong()
+                    }
+                    eWs.copy(exercise = eWs.exercise.copy(supersetGroupId = newGroup))
+                } else if (groupId != null && eWs.exercise.supersetGroupId == groupId && eWs.exercise.id != id) {
+                    eWs.copy(exercise = eWs.exercise.copy(supersetGroupId = groupId))
+                } else eWs
+            }
+        }
+        syncToRepository()
+    }
+
     fun deleteExercise(exerciseId: Long) {
         val exerciseWithSets = exercises.value.find { it.exercise.id == exerciseId }!!
         // If there's the match, then the set has a running stopwatch and it has to be stopped by assign 0

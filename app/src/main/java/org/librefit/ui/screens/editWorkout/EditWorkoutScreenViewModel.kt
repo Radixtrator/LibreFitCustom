@@ -260,6 +260,26 @@ class EditWorkoutScreenViewModel @Inject constructor(
         syncToRepository()
     }
 
+    fun updateExerciseSupersetGroup(groupId: Long?, id: Long) {
+        _exercises.update { currentExercises ->
+            currentExercises.map { eWs ->
+                if (eWs.exercise.id == id) {
+                    val newGroup = if (groupId != null) null else {
+                        val previousWithGroup = currentExercises
+                            .filter { it.exercise.id != id }
+                            .lastOrNull { it.exercise.supersetGroupId != null }
+                            ?.exercise?.supersetGroupId
+                        previousWithGroup ?: Random.nextLong()
+                    }
+                    eWs.copy(exercise = eWs.exercise.copy(supersetGroupId = newGroup))
+                } else if (groupId != null && eWs.exercise.supersetGroupId == groupId && eWs.exercise.id != id) {
+                    eWs.copy(exercise = eWs.exercise.copy(supersetGroupId = groupId))
+                } else eWs
+            }
+        }
+        syncToRepository()
+    }
+
     fun deleteExercise(exerciseId: Long) {
         _exercises.update { currentExercises ->
             currentExercises

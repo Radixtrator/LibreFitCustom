@@ -28,5 +28,6 @@ data class UiExercise(
     val setMode: SetMode = SetMode.LOAD,
     val restTime: Int = 0,
     val position: Int = 0,
+    val supersetGroupId: Long? = null,
     val workoutId: Long = 0
 )
