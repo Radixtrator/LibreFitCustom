@@ -109,6 +109,7 @@ import org.librefit.enums.userPreferences.ThemeMode
 import org.librefit.enums.userPreferences.UnitSystem
 import org.librefit.models.Weight
 import org.librefit.nav.LocalUnitSystem
+import org.librefit.ui.components.dialogs.AmrapSetDialog
 import org.librefit.ui.components.modalBottomSheets.InputModalBottomSheet
 import org.librefit.ui.models.InputModalBottomSheetState
 import org.librefit.ui.models.UiExercise
@@ -992,14 +993,18 @@ private fun Set(
                         }
                     }
                 }
-                SetMenu(
-                    expanded = showSetMenu,
-                    isAmrap = set.isAmrap,
-                    targetReps = set.targetReps,
-                    onDismissRequest = { showSetMenu = false },
-                    onIsAmrapChange = { updateSetIsAmrap(it, set.id) },
-                    onTargetRepsChange = { updateSetTargetReps(it, set.id) }
-                )
+                if (showSetMenu) {
+                    AmrapSetDialog(
+                        isAmrap = set.isAmrap,
+                        targetReps = set.targetReps,
+                        onConfirm = { isAmrap, targetReps ->
+                            showSetMenu = false
+                            updateSetIsAmrap(isAmrap, set.id)
+                            updateSetTargetReps(targetReps, set.id)
+                        },
+                        onDismiss = { showSetMenu = false }
+                    )
+                }
             }
 
             previousSet?.let { values ->
@@ -1253,92 +1258,6 @@ private fun Set(
 
 }
 
-
-/**
- * The menu opened by tapping the number of a set. It carries the settings that belong to the single
- * set rather than to the whole exercise, i.e. whether the set is an AMRAP one and the repetitions it
- * is planned for. Refer to [org.librefit.util.WeightProgression].
- *
- * @param expanded Whether the menu is shown.
- * @param isAmrap Refer to [org.librefit.db.entity.Set.isAmrap].
- * @param targetReps Refer to [org.librefit.db.entity.Set.targetReps].
- * @param onDismissRequest Invoked when the menu should be closed.
- * @param onIsAmrapChange Invoked with the new value of [isAmrap].
- * @param onTargetRepsChange Invoked with the new value of [targetReps]. It is never negative.
- */
-@OptIn(ExperimentalMaterial3ExpressiveApi::class)
-@Composable
-private fun SetMenu(
-    expanded: Boolean,
-    isAmrap: Boolean,
-    targetReps: Int,
-    onDismissRequest: () -> Unit,
-    onIsAmrapChange: (Boolean) -> Unit,
-    onTargetRepsChange: (Int) -> Unit
-) {
-    val decreaseDescription = stringResource(R.string.decrease)
-    val increaseDescription = stringResource(R.string.increase)
-
-    DropdownMenuPopup(
-        expanded = expanded,
-        onDismissRequest = onDismissRequest
-    ) {
-        DropdownMenuGroup(
-            shapes = MenuDefaults.groupShape(0, 1) // Top-level group shape
-        ) {
-            DropdownMenuItem(
-                text = { Text(stringResource(R.string.amrap)) },
-                trailingIcon = if (isAmrap) {
-                    {
-                        Icon(
-                            painterResource(R.drawable.ic_check),
-                            stringResource(R.string.checkbox)
-                        )
-                    }
-                } else null,
-                onClick = {
-                    onIsAmrapChange(!isAmrap)
-                    // The target is worth setting right away, so the menu stays open when it appears
-                    if (isAmrap) onDismissRequest()
-                }
-            )
-        }
-
-        // The target is the baseline the performed repetitions are compared against, so it is
-        // meaningless until the set is an AMRAP one
-        AnimatedVisibility(visible = isAmrap) {
-            Row(
-                modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(4.dp)
-            ) {
-                Text(stringResource(R.string.target_reps))
-                IconButton(
-                    onClick = { onTargetRepsChange(targetReps - 1) },
-                    enabled = targetReps > 0,
-                    modifier = Modifier
-                        .size(28.dp)
-                        .semantics { contentDescription = decreaseDescription }
-                ) {
-                    Text("-", color = MaterialTheme.colorScheme.onSurface)
-                }
-                Text(
-                    text = targetReps.toString(),
-                    textAlign = TextAlign.Center,
-                    modifier = Modifier.width(28.dp)
-                )
-                IconButton(
-                    onClick = { onTargetRepsChange(targetReps + 1) },
-                    modifier = Modifier
-                        .size(28.dp)
-                        .semantics { contentDescription = increaseDescription }
-                ) {
-                    Text("+", color = MaterialTheme.colorScheme.onSurface)
-                }
-            }
-        }
-    }
-}
 
 @OptIn(ExperimentalSharedTransitionApi::class)
 @Preview(wallpaper = Wallpapers.RED_DOMINATED_EXAMPLE)
