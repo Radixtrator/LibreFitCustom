@@ -18,6 +18,7 @@ fun Exercise.toUi(): UiExercise {
         notes = this.notes,
         setMode = this.setMode,
         restTime = this.restTime,
+        weightIncrement = this.weightIncrement,
         position = this.position,
         supersetGroupId = this.supersetGroupId,
         workoutId = this.workoutId
@@ -31,6 +32,7 @@ fun UiExercise.toEntity(): Exercise {
         notes = this.notes,
         setMode = this.setMode,
         restTime = this.restTime,
+        weightIncrement = this.weightIncrement,
         position = this.position,
         supersetGroupId = this.supersetGroupId,
         workoutId = this.workoutId

@@ -28,12 +28,13 @@ import org.librefit.db.entity.Workout
 
 @Database(
     entities = [Workout::class, Exercise::class, Set::class, Measurement::class, ExerciseDC::class],
-    version = 5,
+    version = 6,
     exportSchema = true,
     autoMigrations = [
         AutoMigration(from = 1, to = 2),
         AutoMigration(from = 3, to = 4),
-        AutoMigration(from = 4, to = 5)
+        AutoMigration(from = 4, to = 5),
+        AutoMigration(from = 5, to = 6)
     ]
 )
 @TypeConverters(LocalDateTimeConverter::class, ExerciseDCConverter::class, WeightConverter::class)
@@ -81,6 +82,35 @@ abstract class AppDatabase : RoomDatabase() {
                     """
                     ALTER TABLE exercises
                     ADD COLUMN supersetGroupId INTEGER
+                    """.trimIndent()
+                )
+            }
+        }
+
+        val MIGRATION_5_6 = object : Migration(5, 6) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL(
+                    """
+                    ALTER TABLE exercises
+                    ADD COLUMN weightIncrement REAL NOT NULL DEFAULT 0.0
+                    """.trimIndent()
+                )
+                db.execSQL(
+                    """
+                    ALTER TABLE sets
+                    ADD COLUMN failed INTEGER NOT NULL DEFAULT 0
+                    """.trimIndent()
+                )
+                db.execSQL(
+                    """
+                    ALTER TABLE sets
+                    ADD COLUMN isAmrap INTEGER NOT NULL DEFAULT 0
+                    """.trimIndent()
+                )
+                db.execSQL(
+                    """
+                    ALTER TABLE sets
+                    ADD COLUMN targetReps INTEGER NOT NULL DEFAULT 0
                     """.trimIndent()
                 )
             }

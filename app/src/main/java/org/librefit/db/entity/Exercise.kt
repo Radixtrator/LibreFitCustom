@@ -8,12 +8,14 @@
 
 package org.librefit.db.entity
 
+import androidx.room.ColumnInfo
 import androidx.room.Entity
 import androidx.room.ForeignKey
 import androidx.room.Index
 import androidx.room.PrimaryKey
 import kotlinx.serialization.Serializable
 import org.librefit.enums.SetMode
+import org.librefit.models.Weight
 import kotlin.random.Random
 
 /**
@@ -31,6 +33,10 @@ import kotlin.random.Random
  * @property setMode The mode of the exercise set editable by the user in
  * [org.librefit.ui.screens.workout.WorkoutScreen] and [org.librefit.ui.screens.editWorkout.EditWorkoutScreen]
  * @property restTime The rest time between sets in seconds editable by the user in
+ * [org.librefit.ui.screens.workout.WorkoutScreen] and [org.librefit.ui.screens.editWorkout.EditWorkoutScreen]
+ * @property weightIncrement The amount of weight added to the load suggested for the next session
+ * whenever every set of this exercise has been completed without being marked as
+ * [Set.failed]. A value of zero disables the progression. It is editable by the user in
  * [org.librefit.ui.screens.workout.WorkoutScreen] and [org.librefit.ui.screens.editWorkout.EditWorkoutScreen]
  * @property position The explicit position of the exercise in its parent workout. It is used to
  * keep exercise order stable across reloads and edits.
@@ -66,6 +72,7 @@ data class Exercise(
     val notes: String = "",
     val setMode: SetMode = SetMode.LOAD,
     val restTime: Int = 0,
+    @ColumnInfo(defaultValue = "0.0") val weightIncrement: Weight = Weight.zero(),
     val position: Int = 0,
     val supersetGroupId: Long? = null,
     val workoutId: Long = 0// Foreign key reference to Workout

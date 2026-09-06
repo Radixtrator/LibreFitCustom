@@ -56,6 +56,7 @@ fun InfoModalBottomSheet(
         val title = when (infoMode) {
             InfoMode.REST_TIMER -> stringResource(R.string.rest_time)
             InfoMode.TYPE_OF_SET -> stringResource(R.string.type_of_set)
+            InfoMode.WEIGHT_INCREASE -> stringResource(R.string.weight_increase)
             InfoMode.BEFORE_SAVING_STATS -> stringResource(R.string.statistics)
             InfoMode.MUSCLE_DISTRIBUTION -> stringResource(R.string.muscles_distribution)
             InfoMode.EXERCISES_DISTRIBUTION -> stringResource(R.string.exercises_distribution)
@@ -65,6 +66,7 @@ fun InfoModalBottomSheet(
         val text = when (infoMode) {
             InfoMode.REST_TIMER -> stringResource(R.string.rest_time_desc)
             InfoMode.TYPE_OF_SET -> stringResource(R.string.type_of_set_desc)
+            InfoMode.WEIGHT_INCREASE -> stringResource(R.string.weight_increase_desc)
             InfoMode.BEFORE_SAVING_STATS -> stringResource(R.string.statistics_desc)
             InfoMode.MUSCLE_DISTRIBUTION -> stringResource(R.string.muscle_distribution_desc)
             InfoMode.EXERCISES_DISTRIBUTION -> stringResource(R.string.exercises_distribution_desc)
@@ -116,6 +118,7 @@ fun InfoModalBottomSheet(
                     when (infoMode) {
                         InfoMode.REST_TIMER -> AlarmLottie()
                         InfoMode.TYPE_OF_SET -> TrainingLottie()
+            InfoMode.WEIGHT_INCREASE -> TrainingLottie()
                         InfoMode.BEFORE_SAVING_STATS -> StatsLottie()
                         InfoMode.MUSCLE_DISTRIBUTION -> StatsLottie()
                         InfoMode.EXERCISES_DISTRIBUTION -> StatsLottie()

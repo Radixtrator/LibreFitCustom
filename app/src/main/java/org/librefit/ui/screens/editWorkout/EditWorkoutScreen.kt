@@ -126,6 +126,9 @@ fun SharedTransitionScope.EditWorkoutScreen(
         updateSetReps = viewModel::updateSetReps,
         updateSetLoad = viewModel::updateSetLoad,
         updateSetCompleted = viewModel::updateSetCompleted,
+        updateSetFailed = viewModel::updateSetFailed,
+        updateSetIsAmrap = viewModel::updateSetIsAmrap,
+        updateSetTargetReps = viewModel::updateSetTargetReps,
         deleteSet = viewModel::deleteSet,
         addSetToExercise = viewModel::addSetToExercise,
         deleteExercise = { id ->
@@ -135,6 +138,7 @@ fun SharedTransitionScope.EditWorkoutScreen(
         updateExerciseRestTime = viewModel::updateExerciseRestTime,
         updateExerciseSetMode = viewModel::updateExerciseSetMode,
         updateExerciseSupersetGroup = viewModel::updateExerciseSupersetGroup,
+        updateExerciseWeightIncrement = viewModel::updateExerciseWeightIncrement,
         moveExercise = viewModel::moveExercise,
         saveWorkoutWithExercisesInDB = viewModel::saveWorkoutWithExercisesInDB,
     )
@@ -161,12 +165,16 @@ private fun SharedTransitionScope.EditWorkoutScreenContent(
     updateSetReps: (Int, Long) -> Unit,
     updateSetLoad: (Weight, Long) -> Unit,
     updateSetCompleted: (Boolean, Long) -> Unit,
+    updateSetFailed: (Boolean, Long) -> Unit,
+    updateSetIsAmrap: (Boolean, Long) -> Unit,
+    updateSetTargetReps: (Int, Long) -> Unit,
     addSetToExercise: (Long) -> Unit,
     deleteExercise: (Long) -> Unit,
     updateExerciseNotes: (String, Long) -> Unit,
     updateExerciseRestTime: (Int, Long) -> Unit,
     updateExerciseSetMode: (SetMode, Long) -> Unit,
     updateExerciseSupersetGroup: (Long?, Long) -> Unit,
+    updateExerciseWeightIncrement: (Weight, Long) -> Unit,
     moveExercise: (Int, Int) -> Unit,
     saveWorkoutWithExercisesInDB: () -> Unit
 ) {
@@ -372,11 +380,15 @@ private fun SharedTransitionScope.EditWorkoutScreenContent(
                             updateExerciseRestTime = updateExerciseRestTime,
                             updateExerciseSetMode = updateExerciseSetMode,
                             updateExerciseSupersetGroup = updateExerciseSupersetGroup,
+                            updateExerciseWeightIncrement = updateExerciseWeightIncrement,
                             showInfo = onInfoModeChange,
                             updateSetTime = updateSetTime,
                             updateSetReps = updateSetReps,
                             updateSetLoad = updateSetLoad,
-                            updateSetCompleted = updateSetCompleted
+                            updateSetCompleted = updateSetCompleted,
+                            updateSetFailed = updateSetFailed,
+                            updateSetIsAmrap = updateSetIsAmrap,
+                            updateSetTargetReps = updateSetTargetReps
                         )
                     }
                 }
@@ -444,11 +456,15 @@ private fun EditWorkoutScreenPreview() {
                     updateExerciseRestTime = { _, _ -> },
                     updateExerciseSetMode = { _, _ -> },
                     updateExerciseSupersetGroup = { _, _ -> },
+                    updateExerciseWeightIncrement = { _, _ -> },
                     moveExercise = { _, _ -> },
                     updateSetTime = { _, _ -> },
                     updateSetReps = { _, _ -> },
                     updateSetLoad = { _, _ -> },
-                    updateSetCompleted = { _, _ -> }
+                    updateSetCompleted = { _, _ -> },
+                    updateSetFailed = { _, _ -> },
+                    updateSetIsAmrap = { _, _ -> },
+                    updateSetTargetReps = { _, _ -> }
                 )
             }
         }

@@ -37,7 +37,7 @@ import androidx.compose.foundation.text.input.TextFieldLineLimits
 import androidx.compose.foundation.text.input.rememberTextFieldState
 import androidx.compose.foundation.text.input.setTextAndPlaceCursorAtEnd
 import androidx.compose.material3.CardDefaults
-import androidx.compose.material3.Checkbox
+import androidx.compose.material3.CheckboxDefaults
 import androidx.compose.material3.DropdownMenuGroup
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.DropdownMenuPopup
@@ -61,6 +61,7 @@ import androidx.compose.material3.SwipeToDismissBox
 import androidx.compose.material3.SwipeToDismissBoxValue
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
+import androidx.compose.material3.TriStateCheckbox
 import androidx.compose.material3.rememberSwipeToDismissBoxState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -85,6 +86,10 @@ import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.semantics.stateDescription
+import androidx.compose.ui.state.ToggleableState
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.style.TextAlign
@@ -101,6 +106,7 @@ import org.librefit.enums.InfoMode
 import org.librefit.enums.PreviousPerformanceSet
 import org.librefit.enums.SetMode
 import org.librefit.enums.userPreferences.ThemeMode
+import org.librefit.enums.userPreferences.UnitSystem
 import org.librefit.models.Weight
 import org.librefit.nav.LocalUnitSystem
 import org.librefit.ui.components.modalBottomSheets.InputModalBottomSheet
@@ -112,6 +118,7 @@ import org.librefit.ui.models.UiSet
 import org.librefit.ui.models.autoUnitSuffix
 import org.librefit.ui.models.doubleValue
 import org.librefit.ui.models.formatToText
+import org.librefit.ui.models.withAmrap
 import org.librefit.ui.theme.LibreFitTheme
 import org.librefit.util.Formatter
 import org.librefit.util.Formatter.getDecimalDigitsAsInteger
@@ -161,9 +168,23 @@ import kotlin.time.Duration.Companion.seconds
  * @param updateSetTime A function to update time based on [UiSet.id].. For more details, refer to
  * [org.librefit.ui.screens.workout.WorkoutScreenViewModel.updateSetTime] and
  * [org.librefit.ui.screens.editWorkout.EditWorkoutScreenViewModel.updateSetTime].
+ * @param updateExerciseWeightIncrement A function to update the weight increment based on [UiExercise.id].
+ * For more details, refer to [org.librefit.ui.screens.workout.WorkoutScreenViewModel.updateExerciseWeightIncrement]
+ * and [org.librefit.ui.screens.editWorkout.EditWorkoutScreenViewModel.updateExerciseWeightIncrement].
  * @param updateSetCompleted A function to update completed state based on [UiSet.id]. For more details, refer to
  * [org.librefit.ui.screens.workout.WorkoutScreenViewModel.updateSetCompleted] and
  * [org.librefit.ui.screens.editWorkout.EditWorkoutScreenViewModel.updateSetCompleted].
+ * @param updateSetFailed A function to flag a set as performed but short of the planned repetitions,
+ * based on [UiSet.id]. For more details, refer to
+ * [org.librefit.ui.screens.workout.WorkoutScreenViewModel.updateSetFailed] and
+ * [org.librefit.ui.screens.editWorkout.EditWorkoutScreenViewModel.updateSetFailed].
+ * @param updateSetIsAmrap A function to flag a set as an AMRAP one, based on [UiSet.id]. For more
+ * details, refer to [org.librefit.ui.screens.workout.WorkoutScreenViewModel.updateSetIsAmrap] and
+ * [org.librefit.ui.screens.editWorkout.EditWorkoutScreenViewModel.updateSetIsAmrap].
+ * @param updateSetTargetReps A function to update the repetitions an AMRAP set is planned for,
+ * based on [UiSet.id]. For more details, refer to
+ * [org.librefit.ui.screens.workout.WorkoutScreenViewModel.updateSetTargetReps] and
+ * [org.librefit.ui.screens.editWorkout.EditWorkoutScreenViewModel.updateSetTargetReps].
  * @param deleteSet A function called when the user swipes the set to remove it.
  * @param showInfo A lambda function executed when info icon next to "type of set" or "rest time" text
  * is clicked. The passed parameter is used by [org.librefit.ui.components.modalBottomSheets.InfoModalBottomSheet] to show the relevant information.
@@ -204,10 +225,14 @@ fun SharedTransitionScope.ExerciseCard(
     updateExerciseRestTime: (Int, Long) -> Unit,
     updateExerciseSetMode: (SetMode, Long) -> Unit,
     updateExerciseSupersetGroup: (Long?, Long) -> Unit,
+    updateExerciseWeightIncrement: (Weight, Long) -> Unit,
     updateSetTime: (Int, Long) -> Unit,
     updateSetReps: (Int, Long) -> Unit,
     updateSetLoad: (Weight, Long) -> Unit,
     updateSetCompleted: (Boolean, Long) -> Unit,
+    updateSetFailed: (Boolean, Long) -> Unit,
+    updateSetIsAmrap: (Boolean, Long) -> Unit,
+    updateSetTargetReps: (Int, Long) -> Unit,
     showInfo: (InfoMode) -> Unit,
     updateIdSetWithRunningStopwatch: (Long?) -> Unit = {},
     applyPreviousSetPerformance: (Long) -> Unit = {}
@@ -529,6 +554,23 @@ fun SharedTransitionScope.ExerciseCard(
                         }
                     }
 
+                    // Progressive overload. It is meaningful only for the set modes carrying a load
+                    AnimatedVisibility(
+                        visible = exerciseWithSets.exercise.setMode == SetMode.LOAD ||
+                                exerciseWithSets.exercise.setMode == SetMode.BODYWEIGHT_WITH_LOAD
+                    ) {
+                        WeightIncrementRow(
+                            weightIncrement = exerciseWithSets.exercise.weightIncrement,
+                            onWeightIncrementChange = { newIncrement ->
+                                updateExerciseWeightIncrement(
+                                    newIncrement,
+                                    exerciseWithSets.exercise.id
+                                )
+                            },
+                            showInfo = showInfo
+                        )
+                    }
+
                     ElevatedCard(
                         shape = MaterialTheme.shapes.extraLarge,
                         colors = CardDefaults.elevatedCardColors(
@@ -598,6 +640,9 @@ fun SharedTransitionScope.ExerciseCard(
                                         updateSetReps = updateSetReps,
                                         updateSetLoad = updateSetLoad,
                                         updateSetCompleted = updateSetCompleted,
+                                        updateSetFailed = updateSetFailed,
+                                        updateSetIsAmrap = updateSetIsAmrap,
+                                        updateSetTargetReps = updateSetTargetReps,
                                         applyPreviousSet = applyPreviousSetPerformance
                                     )
                                 }
@@ -618,6 +663,116 @@ fun SharedTransitionScope.ExerciseCard(
     }
 }
 
+/**
+ * The control letting the user configure [UiExercise.weightIncrement], i.e. how much load is added
+ * to the suggestion for the next session once every set of the exercise has been completed without
+ * being flagged as missed reps. A value of zero disables the progression.
+ *
+ * @param weightIncrement The currently configured increment.
+ * @param onWeightIncrementChange Invoked with the new increment. It is never negative.
+ * @param showInfo Refer to [org.librefit.ui.components.modalBottomSheets.InfoModalBottomSheet]
+ */
+@Composable
+private fun WeightIncrementRow(
+    weightIncrement: Weight,
+    onWeightIncrementChange: (Weight) -> Unit,
+    showInfo: (InfoMode) -> Unit
+) {
+    val unitSystem = LocalUnitSystem.current
+    val unit = autoUnitSuffix()
+
+    // The smallest plate commonly available, so the steppers land on realistic values
+    val step = when (unitSystem) {
+        UnitSystem.METRIC -> 1.25
+        UnitSystem.IMPERIAL -> 2.5
+    }
+
+    var incrementValue by rememberSaveable(weightIncrement) {
+        mutableStateOf(weightIncrement.doubleValue(unitSystem).toString())
+    }
+
+    Row(
+        modifier = Modifier.fillMaxWidth(),
+        horizontalArrangement = Arrangement.SpaceBetween,
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            IconButton(
+                // Read more at InfoModalBottomSheet
+                onClick = { showInfo(InfoMode.WEIGHT_INCREASE) }
+            ) {
+                Icon(
+                    painter = painterResource(R.drawable.ic_info),
+                    contentDescription = stringResource(R.string.info)
+                )
+            }
+            Text(stringResource(R.string.weight_increase) + " (" + unit + ")")
+        }
+
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            IconButton(
+                onClick = {
+                    onWeightIncrementChange(
+                        weightIncrement.steppedBy(-step, unitSystem)
+                    )
+                },
+                modifier = Modifier.size(28.dp)
+            ) {
+                Text("-", color = MaterialTheme.colorScheme.onSurface)
+            }
+            OutlinedTextField(
+                shape = MaterialTheme.shapes.large,
+                modifier = Modifier.width(80.dp),
+                value = incrementValue,
+                onValueChange = { string ->
+                    incrementValue = Formatter.normalizeNumericString(string)
+
+                    onWeightIncrementChange(
+                        Weight.auto(
+                            (Formatter.parseDoubleFromString(incrementValue) ?: 0.0)
+                                .coerceIn(0.0, MAX_WEIGHT_INCREMENT),
+                            unitSystem
+                        )
+                    )
+                },
+                singleLine = true,
+                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
+                colors = OutlinedTextFieldDefaults.colors(
+                    unfocusedBorderColor = Color.Transparent,
+                    focusedBorderColor = Color.Transparent,
+                    disabledBorderColor = Color.Transparent
+                )
+            )
+            IconButton(
+                onClick = {
+                    onWeightIncrementChange(
+                        weightIncrement.steppedBy(step, unitSystem)
+                    )
+                },
+                modifier = Modifier.size(28.dp)
+            ) {
+                Text("+", color = MaterialTheme.colorScheme.onSurface)
+            }
+        }
+    }
+}
+
+/**
+ * The largest increment that can be configured. Anything above it is a typo rather than an
+ * intention, and [Weight] would throw for values outside of its own range.
+ */
+private const val MAX_WEIGHT_INCREMENT = 1000.0
+
+/**
+ * Moves the receiver by [delta], expressed in the unit of [unitSystem], keeping the result within
+ * the bounds accepted for an increment.
+ */
+private fun Weight.steppedBy(delta: Double, unitSystem: UnitSystem): Weight {
+    val stepped = (doubleValue(unitSystem) + delta).coerceIn(0.0, MAX_WEIGHT_INCREMENT)
+
+    return Weight.auto(stepped, unitSystem)
+}
+
 @OptIn(ExperimentalMaterial3ExpressiveApi::class)
 @Composable
 private fun Set(
@@ -636,6 +791,9 @@ private fun Set(
     updateSetReps: (Int, Long) -> Unit,
     updateSetLoad: (Weight, Long) -> Unit,
     updateSetCompleted: (Boolean, Long) -> Unit,
+    updateSetFailed: (Boolean, Long) -> Unit,
+    updateSetIsAmrap: (Boolean, Long) -> Unit,
+    updateSetTargetReps: (Int, Long) -> Unit,
     updateIdSetWithRunningStopwatch: (Long?) -> Unit,
     applyPreviousSet: (Long) -> Unit
 ) {
@@ -765,18 +923,18 @@ private fun Set(
         }
     ) {
         val backgroundColor by animateColorAsState(
-            targetValue = if (set.completed) {
-                MaterialTheme.colorScheme.tertiaryContainer
-            } else {
-                MaterialTheme.colorScheme.surfaceContainerHighest
+            targetValue = when {
+                set.failed -> MaterialTheme.colorScheme.errorContainer
+                set.completed -> MaterialTheme.colorScheme.tertiaryContainer
+                else -> MaterialTheme.colorScheme.surfaceContainerHighest
             },
             label = "animated_color_for_set_background"
         )
         val contentColor by animateColorAsState(
-            targetValue = if (set.completed) {
-                MaterialTheme.colorScheme.onTertiaryContainer
-            } else {
-                MaterialTheme.colorScheme.onSurface
+            targetValue = when {
+                set.failed -> MaterialTheme.colorScheme.onErrorContainer
+                set.completed -> MaterialTheme.colorScheme.onTertiaryContainer
+                else -> MaterialTheme.colorScheme.onSurface
             },
             label = "animated_color_for_set_content"
         )
@@ -799,11 +957,50 @@ private fun Set(
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.SpaceBetween
         ) {
-            Text(
-                text = "${i + 1}",
-                color = contentColor,
-                modifier = Modifier.padding(start = 20.dp)
-            )
+            // The progression rewards beating the target only where a load can actually go up
+            val isAmrapAvailable =
+                setMode == SetMode.LOAD || setMode == SetMode.BODYWEIGHT_WITH_LOAD
+            var showSetMenu by remember { mutableStateOf(false) }
+
+            Box(modifier = Modifier.padding(start = 12.dp)) {
+                Column(
+                    modifier = Modifier
+                        .clip(MaterialTheme.shapes.medium)
+                        .clickable(enabled = isAmrapAvailable) { showSetMenu = true }
+                        .padding(horizontal = 8.dp, vertical = 4.dp),
+                    horizontalAlignment = Alignment.CenterHorizontally
+                ) {
+                    Text(
+                        text = "${i + 1}",
+                        color = contentColor
+                    )
+                    // An AMRAP set is taken to the limit, so the target to beat is worth showing.
+                    // A set mode carrying no load ignores the flag, so it does not advertise it
+                    // either, leaving no label the user cannot reach the menu to remove
+                    if (set.isAmrap && isAmrapAvailable) {
+                        Text(
+                            text = stringResource(R.string.amrap),
+                            color = contentColor,
+                            style = MaterialTheme.typography.labelSmall
+                        )
+                        if (set.targetReps > 0) {
+                            Text(
+                                text = stringResource(R.string.amrap_target, set.targetReps),
+                                color = MaterialTheme.colorScheme.primary,
+                                style = MaterialTheme.typography.labelSmall
+                            )
+                        }
+                    }
+                }
+                SetMenu(
+                    expanded = showSetMenu,
+                    isAmrap = set.isAmrap,
+                    targetReps = set.targetReps,
+                    onDismissRequest = { showSetMenu = false },
+                    onIsAmrapChange = { updateSetIsAmrap(it, set.id) },
+                    onTargetRepsChange = { updateSetTargetReps(it, set.id) }
+                )
+            }
 
             previousSet?.let { values ->
                 TextButton(
@@ -817,11 +1014,22 @@ private fun Set(
                         SetMode.BODYWEIGHT_WITH_LOAD -> "${previousLoad.formatToText()}\n* $previousReps"
                         SetMode.DURATION -> Formatter.formateSecondsInMinutesAndSeconds(previousTime)
                     }
-                    Text(
-                        text = text,
-                        color = contentColor,
-                        textAlign = TextAlign.Center,
-                    )
+                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                        Text(
+                            text = text,
+                            color = contentColor,
+                            textAlign = TextAlign.Center,
+                        )
+                        // The last session was fully completed, so the load goes up this time
+                        values.suggestedLoad?.let { suggestedLoad ->
+                            Text(
+                                text = "\u2192 " + suggestedLoad.formatToText(),
+                                color = MaterialTheme.colorScheme.primary,
+                                style = MaterialTheme.typography.labelSmall,
+                                textAlign = TextAlign.Center
+                            )
+                        }
+                    }
                 }
             }
 
@@ -892,48 +1100,75 @@ private fun Set(
             } else {
                 if (setMode == SetMode.LOAD || setMode == SetMode.BODYWEIGHT_WITH_LOAD) {
                     //Weight
-                    Box {
-                        OutlinedTextField(
-                            shape = MaterialTheme.shapes.large,
-                            modifier = Modifier.width(80.dp),
-                            value = weightValue,
-                            onValueChange = { string ->
-                                weightValue = Formatter.normalizeNumericString(string)
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(6.dp)
+                    ) {
+                        if (!useScrollWheelForInput) {
+                            IconButton(
+                                onClick = {
+                                    val newLoad = set.load.stepBy(-2.5, unitSystem)
+                                    updateSetLoad(newLoad, set.id)
+                                },
+                                modifier = Modifier.size(28.dp)
+                            ) {
+                                Text("-")
+                            }
+                        }
+                        Box {
+                            OutlinedTextField(
+                                shape = MaterialTheme.shapes.large,
+                                modifier = Modifier.width(80.dp),
+                                value = weightValue,
+                                onValueChange = { string ->
+                                    weightValue = Formatter.normalizeNumericString(string)
 
-                                updateSetLoad(
-                                    Weight.auto(
-                                        Formatter.parseDoubleFromString(weightValue) ?: 0.0,
-                                        unitSystem
-                                    ),
-                                    set.id
-                                )
-                            },
-                            singleLine = true,
-                            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
-                            colors = OutlinedTextFieldDefaults.colors(
-                                unfocusedBorderColor = Color.Transparent,
-                                focusedBorderColor = Color.Transparent,
-                                disabledBorderColor = Color.Transparent,
-                                focusedTextColor = contentColor,
-                                unfocusedTextColor = contentColor,
-                            ),
-                            readOnly = useScrollWheelForInput
-                        )
-                        if (useScrollWheelForInput) {
-                            Box(
-                                modifier = Modifier
-                                    .matchParentSize()
-                                    .clip(MaterialTheme.shapes.extraLarge)
-                                    .clickable {
-                                        val value = set.load.doubleValue(unitSystem)
-                                        inputModalBottomSheetState =
-                                            InputModalBottomSheetState.Weight.create(
-                                                integerWeight = value.toInt(),
-                                                decimalWeight = value.getDecimalDigitsAsInteger()
-                                            )
-                                        inputSetId = set.id
-                                    }
-                            ) { }
+                                    updateSetLoad(
+                                        Weight.auto(
+                                            Formatter.parseDoubleFromString(weightValue) ?: 0.0,
+                                            unitSystem
+                                        ),
+                                        set.id
+                                    )
+                                },
+                                singleLine = true,
+                                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
+                                colors = OutlinedTextFieldDefaults.colors(
+                                    unfocusedBorderColor = Color.Transparent,
+                                    focusedBorderColor = Color.Transparent,
+                                    disabledBorderColor = Color.Transparent,
+                                    focusedTextColor = contentColor,
+                                    unfocusedTextColor = contentColor,
+                                ),
+                                readOnly = useScrollWheelForInput
+                            )
+                            if (useScrollWheelForInput) {
+                                Box(
+                                    modifier = Modifier
+                                        .matchParentSize()
+                                        .clip(MaterialTheme.shapes.extraLarge)
+                                        .clickable {
+                                            val value = set.load.doubleValue(unitSystem)
+                                            inputModalBottomSheetState =
+                                                InputModalBottomSheetState.Weight.create(
+                                                    integerWeight = value.toInt(),
+                                                    decimalWeight = value.getDecimalDigitsAsInteger()
+                                                )
+                                            inputSetId = set.id
+                                        }
+                                ) { }
+                            }
+                        }
+                        if (!useScrollWheelForInput) {
+                            IconButton(
+                                onClick = {
+                                    val newLoad = set.load.stepBy(2.5, unitSystem)
+                                    updateSetLoad(newLoad, set.id)
+                                },
+                                modifier = Modifier.size(28.dp)
+                            ) {
+                                Text("+")
+                            }
                         }
                     }
                 }
@@ -977,14 +1212,40 @@ private fun Set(
             }
 
             if (workout) {
-                Checkbox(
-                    checked = set.completed,
-                    onCheckedChange = { checked ->
+                // The indeterminate state on its own does not tell what it stands for
+                val missedRepsDescription = stringResource(R.string.missed_reps)
+
+                // Off -> done -> done but short of the planned reps -> off again
+                TriStateCheckbox(
+                    modifier = if (set.failed) {
+                        Modifier.semantics { stateDescription = missedRepsDescription }
+                    } else Modifier,
+                    state = when {
+                        set.failed -> ToggleableState.Indeterminate
+                        set.completed -> ToggleableState.On
+                        else -> ToggleableState.Off
+                    },
+                    onClick = {
                         if (isThisSetStopwatchRunning) {
                             updateIdSetWithRunningStopwatch(null)
                         }
-                        updateSetCompleted(checked, set.id)
-                    }
+                        when {
+                            set.failed -> {
+                                updateSetFailed(false, set.id)
+                                updateSetCompleted(false, set.id)
+                            }
+
+                            set.completed -> updateSetFailed(true, set.id)
+                            else -> updateSetCompleted(true, set.id)
+                        }
+                    },
+                    colors = CheckboxDefaults.colors(
+                        checkedColor = if (set.failed) {
+                            MaterialTheme.colorScheme.error
+                        } else {
+                            MaterialTheme.colorScheme.primary
+                        }
+                    )
                 )
             }
         }
@@ -992,6 +1253,92 @@ private fun Set(
 
 }
 
+
+/**
+ * The menu opened by tapping the number of a set. It carries the settings that belong to the single
+ * set rather than to the whole exercise, i.e. whether the set is an AMRAP one and the repetitions it
+ * is planned for. Refer to [org.librefit.util.WeightProgression].
+ *
+ * @param expanded Whether the menu is shown.
+ * @param isAmrap Refer to [org.librefit.db.entity.Set.isAmrap].
+ * @param targetReps Refer to [org.librefit.db.entity.Set.targetReps].
+ * @param onDismissRequest Invoked when the menu should be closed.
+ * @param onIsAmrapChange Invoked with the new value of [isAmrap].
+ * @param onTargetRepsChange Invoked with the new value of [targetReps]. It is never negative.
+ */
+@OptIn(ExperimentalMaterial3ExpressiveApi::class)
+@Composable
+private fun SetMenu(
+    expanded: Boolean,
+    isAmrap: Boolean,
+    targetReps: Int,
+    onDismissRequest: () -> Unit,
+    onIsAmrapChange: (Boolean) -> Unit,
+    onTargetRepsChange: (Int) -> Unit
+) {
+    val decreaseDescription = stringResource(R.string.decrease)
+    val increaseDescription = stringResource(R.string.increase)
+
+    DropdownMenuPopup(
+        expanded = expanded,
+        onDismissRequest = onDismissRequest
+    ) {
+        DropdownMenuGroup(
+            shapes = MenuDefaults.groupShape(0, 1) // Top-level group shape
+        ) {
+            DropdownMenuItem(
+                text = { Text(stringResource(R.string.amrap)) },
+                trailingIcon = if (isAmrap) {
+                    {
+                        Icon(
+                            painterResource(R.drawable.ic_check),
+                            stringResource(R.string.checkbox)
+                        )
+                    }
+                } else null,
+                onClick = {
+                    onIsAmrapChange(!isAmrap)
+                    // The target is worth setting right away, so the menu stays open when it appears
+                    if (isAmrap) onDismissRequest()
+                }
+            )
+        }
+
+        // The target is the baseline the performed repetitions are compared against, so it is
+        // meaningless until the set is an AMRAP one
+        AnimatedVisibility(visible = isAmrap) {
+            Row(
+                modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(4.dp)
+            ) {
+                Text(stringResource(R.string.target_reps))
+                IconButton(
+                    onClick = { onTargetRepsChange(targetReps - 1) },
+                    enabled = targetReps > 0,
+                    modifier = Modifier
+                        .size(28.dp)
+                        .semantics { contentDescription = decreaseDescription }
+                ) {
+                    Text("-", color = MaterialTheme.colorScheme.onSurface)
+                }
+                Text(
+                    text = targetReps.toString(),
+                    textAlign = TextAlign.Center,
+                    modifier = Modifier.width(28.dp)
+                )
+                IconButton(
+                    onClick = { onTargetRepsChange(targetReps + 1) },
+                    modifier = Modifier
+                        .size(28.dp)
+                        .semantics { contentDescription = increaseDescription }
+                ) {
+                    Text("+", color = MaterialTheme.colorScheme.onSurface)
+                }
+            }
+        }
+    }
+}
 
 @OptIn(ExperimentalSharedTransitionApi::class)
 @Preview(wallpaper = Wallpapers.RED_DOMINATED_EXAMPLE)
@@ -1067,6 +1414,11 @@ private fun ExerciseCardPreview() {
                         e.value = e.value.copy(exercise = e.value.exercise.copy(setMode = setMode))
                     },
                     updateExerciseSupersetGroup = { _, _ -> },
+                    updateExerciseWeightIncrement = { weightIncrement, _ ->
+                        e.value = e.value.copy(
+                            exercise = e.value.exercise.copy(weightIncrement = weightIncrement)
+                        )
+                    },
                     updateSetTime = { time, id ->
                         e.value = e.value.copy(
                             sets = e.value.sets.map {
@@ -1092,6 +1444,29 @@ private fun ExerciseCardPreview() {
                         e.value = e.value.copy(
                             sets = e.value.sets.map {
                                 if (it.id == id) it.copy(completed = completed) else it
+                            }.toImmutableList()
+                        )
+                    },
+                    updateSetFailed = { failed, id ->
+                        e.value = e.value.copy(
+                            sets = e.value.sets.map {
+                                if (it.id == id) {
+                                    it.copy(failed = failed, completed = failed || it.completed)
+                                } else it
+                            }.toImmutableList()
+                        )
+                    },
+                    updateSetIsAmrap = { isAmrap, id ->
+                        e.value = e.value.copy(
+                            sets = e.value.sets.map {
+                                if (it.id == id) it.withAmrap(isAmrap) else it
+                            }.toImmutableList()
+                        )
+                    },
+                    updateSetTargetReps = { targetReps, id ->
+                        e.value = e.value.copy(
+                            sets = e.value.sets.map {
+                                if (it.id == id) it.copy(targetReps = targetReps) else it
                             }.toImmutableList()
                         )
                     },

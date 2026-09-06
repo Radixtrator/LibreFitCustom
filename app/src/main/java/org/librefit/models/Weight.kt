@@ -64,6 +64,17 @@ value class Weight private constructor(
 
     operator fun div(other: Weight): Double = this.inKilograms / other.inKilograms
 
+    fun stepBy(deltaInPounds: Double, unitSystem: UnitSystem): Weight {
+        val currentValue = when (unitSystem) {
+            UnitSystem.METRIC -> inKilograms
+            UnitSystem.IMPERIAL -> inPounds
+        }
+        val delta = when (unitSystem) {
+            UnitSystem.METRIC -> deltaInPounds * POUNDS_TO_KILOGRAMS
+            UnitSystem.IMPERIAL -> deltaInPounds
+        }
+        return Weight.auto(currentValue + delta, unitSystem)
+    }
 
     companion object {
         /** Minimum allowable weight in kilograms. */

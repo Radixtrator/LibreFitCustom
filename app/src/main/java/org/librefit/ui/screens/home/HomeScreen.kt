@@ -23,6 +23,8 @@ import androidx.compose.animation.core.rememberInfiniteTransition
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -34,6 +36,7 @@ import androidx.compose.material3.ElevatedCard
 import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
+import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.NavigationBar
 import androidx.compose.material3.NavigationBarItem
@@ -133,6 +136,26 @@ fun SharedTransitionScope.HomeScreen(
 
     val runningWorkout by viewModel.runningWorkout.collectAsStateWithLifecycle()
 
+    // The routine the user asked to export, kept until the system file picker comes back with the
+    // destination to write it to
+    val routineIdToExport = rememberSaveable { mutableStateOf<Long?>(null) }
+
+    val importRoutineLauncher = rememberLauncherForActivityResult(
+        ActivityResultContracts.OpenDocument()
+    ) { uri ->
+        uri?.let { viewModel.importRoutine(context.contentResolver, it) }
+    }
+
+    val exportRoutineLauncher = rememberLauncherForActivityResult(
+        ActivityResultContracts.CreateDocument(ROUTINE_FILE_MIME_TYPE)
+    ) { uri ->
+        val routineId = routineIdToExport.value
+        routineIdToExport.value = null
+        if (uri != null && routineId != null) {
+            viewModel.exportRoutine(context.contentResolver, uri, routineId)
+        }
+    }
+
     HomeScreenContent(
         navController = navController,
         runningWorkout = runningWorkout,
@@ -141,6 +164,13 @@ fun SharedTransitionScope.HomeScreen(
         deleteRunningWorkout = viewModel::deleteRunningWorkout,
         showKeepAndroidOpen = showKeepAndroidOpen,
         onKeepAndroidOpenCheckboxChange = viewModel::saveKeepOpenAndroidCheckbox,
+        onImportRoutine = {
+            importRoutineLauncher.launch(arrayOf(ROUTINE_FILE_MIME_TYPE, "*/*"))
+        },
+        onExportRoutine = { routineId ->
+            routineIdToExport.value = routineId
+            exportRoutineLauncher.launch("routine.json")
+        },
         navigateToRoutine = { workoutId ->
             val requestPermission = !hasNotificationPermission && requestPermissionNextTime
 
@@ -170,6 +200,8 @@ private fun SharedTransitionScope.HomeScreenContent(
     onKeepAndroidOpenCheckboxChange: (Boolean) -> Unit,
     animatedVisibilityScope: AnimatedVisibilityScope,
     deleteRunningWorkout: () -> Unit,
+    onImportRoutine: () -> Unit,
+    onExportRoutine: (Long) -> Unit,
     navigateToRoutine: (Long) -> Unit
 ) {
     val showConfirmDeleteRunningWorkoutDialog = rememberSaveable { mutableStateOf(false) }
@@ -294,7 +326,16 @@ private fun SharedTransitionScope.HomeScreenContent(
 
 
         item {
-            HeadlineText(stringResource(id = R.string.your_routines))
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.SpaceBetween
+            ) {
+                HeadlineText(stringResource(id = R.string.your_routines))
+                OutlinedButton(onClick = onImportRoutine) {
+                    Text(text = stringResource(R.string.import_routine))
+                }
+            }
         }
 
         if (routines.isEmpty()) {
@@ -364,17 +405,27 @@ private fun SharedTransitionScope.HomeScreenContent(
                                 animatedVisibilityScope = animatedVisibilityScope
                             )
                         )
-                        IconButton(
-                            onClick = {
-                                navController.navigate(Route.InfoWorkoutScreen(workoutId = routine.id)) {
-                                    launchSingleTop = true
-                                }
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            IconButton(
+                                onClick = { onExportRoutine(routine.id) }
+                            ) {
+                                Icon(
+                                    painter = painterResource(R.drawable.ic_exit_to_app),
+                                    contentDescription = stringResource(R.string.export_routine)
+                                )
                             }
-                        ) {
-                            Icon(
-                                painter = painterResource(R.drawable.ic_info),
-                                contentDescription = stringResource(R.string.info)
-                            )
+                            IconButton(
+                                onClick = {
+                                    navController.navigate(Route.InfoWorkoutScreen(workoutId = routine.id)) {
+                                        launchSingleTop = true
+                                    }
+                                }
+                            ) {
+                                Icon(
+                                    painter = painterResource(R.drawable.ic_info),
+                                    contentDescription = stringResource(R.string.info)
+                                )
+                            }
                         }
                     }
                     LibreFitButton(
@@ -472,6 +523,8 @@ fun HomeScreenPreview() {
                             runningWorkout = runningWorkout.value,
                             showKeepAndroidOpen = false,
                             onKeepAndroidOpenCheckboxChange = {},
+                            onImportRoutine = {},
+                            onExportRoutine = { _ -> },
                             routines = listOf(
                                 UiWorkout(
                                     id = Random.nextLong(),
@@ -496,3 +549,9 @@ fun HomeScreenPreview() {
         }
     }
 }
+
+/**
+ * The media type routines are exported as and filtered for on import. The picker also offers every
+ * other type, since providers do not always tag a .json file with it.
+ */
+private const val ROUTINE_FILE_MIME_TYPE = "application/json"

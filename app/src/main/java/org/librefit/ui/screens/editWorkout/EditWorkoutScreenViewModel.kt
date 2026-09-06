@@ -38,6 +38,7 @@ import org.librefit.ui.models.UiWorkoutWithExercisesAndSets
 import org.librefit.ui.models.mappers.toEntity
 import org.librefit.ui.models.mappers.toUi
 import org.librefit.ui.models.moveExercise
+import org.librefit.ui.models.withAmrap
 import org.librefit.ui.models.withNormalizedExercisePositions
 import javax.inject.Inject
 import kotlin.random.Random
@@ -190,6 +191,48 @@ class EditWorkoutScreenViewModel @Inject constructor(
         syncToRepository()
     }
 
+    /**
+     * Flags the set as an AMRAP one, or clears the flag. Refer to [org.librefit.db.entity.Set.isAmrap].
+     *
+     * Turning the flag on seeds the target from the planned repetitions, refer to
+     * [org.librefit.ui.models.withAmrap].
+     */
+    fun updateSetIsAmrap(isAmrap: Boolean, id: Long) {
+        _exercises.update { currentExercises ->
+            currentExercises.map { exercise ->
+                if (exercise.sets.any { it.id == id }) {
+                    exercise.copy(
+                        sets = exercise.sets.map {
+                            if (it.id == id) it.withAmrap(isAmrap) else it
+                        }.toImmutableList()
+                    )
+                } else exercise
+            }
+        }
+        syncToRepository()
+    }
+
+    /**
+     * Sets the amount of repetitions an AMRAP set is planned for, i.e. the baseline the performed
+     * repetitions are compared against. Refer to [org.librefit.db.entity.Set.targetReps].
+     */
+    fun updateSetTargetReps(targetReps: Int, id: Long) {
+        _exercises.update { currentExercises ->
+            currentExercises.map { exercise ->
+                if (exercise.sets.any { it.id == id }) {
+                    exercise.copy(
+                        sets = exercise.sets.map {
+                            if (it.id == id) {
+                                it.copy(targetReps = targetReps.coerceAtLeast(0))
+                            } else it
+                        }.toImmutableList()
+                    )
+                } else exercise
+            }
+        }
+        syncToRepository()
+    }
+
     fun updateSetLoad(load: Weight, id: Long) {
         _exercises.update { currentExercises ->
             currentExercises.map { exercise ->
@@ -220,6 +263,27 @@ class EditWorkoutScreenViewModel @Inject constructor(
         syncToRepository()
     }
 
+    /**
+     * Marks a set as performed but short of the planned repetitions. A missed set is implicitly
+     * completed, since the user did train it, but it stops the load of this exercise from being
+     * increased in the next session. Refer to [org.librefit.util.WeightProgression].
+     */
+    fun updateSetFailed(failed: Boolean, id: Long) {
+        _exercises.update { currentExercises ->
+            currentExercises.map { exercise ->
+                if (exercise.sets.any { it.id == id }) {
+                    exercise.copy(
+                        sets = exercise.sets.map {
+                            if (it.id == id) {
+                                it.copy(failed = failed, completed = if (failed) true else it.completed)
+                            } else it
+                        }.toImmutableList()
+                    )
+                } else exercise
+            }
+        }
+        syncToRepository()
+    }
     fun deleteSet(id: Long) {
         _exercises.update { currentExercises ->
             currentExercises.map { exercise ->
@@ -246,6 +310,20 @@ class EditWorkoutScreenViewModel @Inject constructor(
         _exercises.update { currentExercises ->
             currentExercises.map { eWs ->
                 if (eWs.exercise.id == id) eWs.copy(exercise = eWs.exercise.copy(restTime = restTime)) else eWs
+            }
+        }
+        syncToRepository()
+    }
+
+    /**
+     * Updates [org.librefit.ui.models.UiExercise.weightIncrement], i.e. how much heavier the
+     * suggestion for the next session gets once every set of the exercise is completed without
+     * being marked as missed. Refer to [org.librefit.util.WeightProgression].
+     */
+    fun updateExerciseWeightIncrement(weightIncrement: Weight, id: Long) {
+        _exercises.update { currentExercises ->
+            currentExercises.map { eWs ->
+                if (eWs.exercise.id == id) eWs.copy(exercise = eWs.exercise.copy(weightIncrement = weightIncrement)) else eWs
             }
         }
         syncToRepository()

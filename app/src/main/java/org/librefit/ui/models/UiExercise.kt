@@ -11,6 +11,7 @@ package org.librefit.ui.models
 import androidx.compose.runtime.Immutable
 import kotlinx.collections.immutable.ImmutableList
 import org.librefit.enums.SetMode
+import org.librefit.models.Weight
 import kotlin.random.Random
 
 /**
@@ -27,6 +28,7 @@ data class UiExercise(
     val notes: String = "",
     val setMode: SetMode = SetMode.LOAD,
     val restTime: Int = 0,
+    val weightIncrement: Weight = Weight.zero(),
     val position: Int = 0,
     val supersetGroupId: Long? = null,
     val workoutId: Long = 0

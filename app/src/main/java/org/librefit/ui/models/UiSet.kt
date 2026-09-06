@@ -27,5 +27,22 @@ data class UiSet(
     val reps: Int = 0,
     val elapsedTime: Int = 0,
     val completed: Boolean = false,
+    val failed: Boolean = false,
+    val isAmrap: Boolean = false,
+    val targetReps: Int = 0,
     val exerciseId: Long = 0
 )
+
+/**
+ * Returns the set with its AMRAP flag set to [isAmrap].
+ *
+ * Turning the flag on takes the repetitions currently planned for the set as its [UiSet.targetReps]
+ * when no target has been set yet, so the set is already comparable without asking the user for a
+ * number they have just typed. Refer to [org.librefit.util.WeightProgression].
+ */
+fun UiSet.withAmrap(isAmrap: Boolean): UiSet {
+    return copy(
+        isAmrap = isAmrap,
+        targetReps = if (isAmrap && targetReps == 0) reps else targetReps
+    )
+}

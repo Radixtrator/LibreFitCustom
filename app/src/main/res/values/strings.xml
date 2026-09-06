@@ -165,7 +165,14 @@
     <string name="reorder">Reorder</string>
     <string name="add_superset">Add superset</string>
     <string name="remove_superset">Remove superset</string>
-    <string name="weight_increase_desc"># Weight increase\n\nIt is the amount of weight automatically added to the suggestion for your next session, so you do not have to remember when to go heavier.\n\nWhile training, tap the checkbox of a set once to mark it as done. Tap it a second time to mark it as *missed reps*: the set still counts as trained, but it tells LibreFit you did not reach the planned repetitions.\n\nWhen you complete **every** set of this exercise and none of them is marked as *missed reps*, the next time you meet the exercise its previous performance shows an arrow with the increased load. Tapping the previous performance fills the set with that load.\n\nIf even a single set is left unchecked or is marked as *missed reps*, the load stays the same, so you get another chance at the same weight.\n\nSet it to zero to disable the progression for this exercise.</string>
+    <string name="increase">Increase</string>
+    <string name="decrease">Decrease</string>
+    <string name="weight_increase">Weight increase</string>
+    <string name="weight_increase_desc"># Weight increase\n\nIt is the amount of weight automatically added to the suggestion for your next session, so you do not have to remember when to go heavier.\n\nWhile training, tap the checkbox of a set once to mark it as done. Tap it a second time to mark it as *missed reps*: the set still counts as trained, but it tells LibreFit you did not reach the planned repetitions.\n\nWhen you complete **every** set of this exercise and none of them is marked as *missed reps*, the next time you meet the exercise its previous performance shows an arrow with the increased load. Tapping the previous performance fills the set with that load.\n\nIf even a single set is left unchecked or is marked as *missed reps*, the load stays the same, so you get another chance at the same weight.\n\nSet it to zero to disable the progression for this exercise.\n\n## AMRAP sets\n\nTap the number of a set to mark it as **AMRAP**, i.e. *as many repetitions as possible*: instead of stopping at the planned repetitions you go to the limit, and the target you have to beat is shown next to the set.\n\nBeating the target earns a bigger jump: doubling the planned repetitions doubles the weight increase, tripling them triples it, up to four times. When the exercise holds more than one AMRAP set, the weakest of them decides the jump.</string>
+    <string name="missed_reps">Missed reps</string>
+    <string name="amrap">AMRAP</string>
+    <string name="amrap_target">≥ %1$d</string>
+    <string name="target_reps">Target reps</string>
 
 
     <!-- Error screen-->
@@ -197,6 +204,8 @@
     <string name="discard_running_workout_question">Discard running workout?</string>
     <string name="delete_running_workout_text">Are you sure you want to discard this unsaved, ongoing workout? This action cannot be undone.</string>
     <string name="discard_running_workout_and_select_routine_text">To start this routine, the current unsaved, ongoing workout has to be dismissed. Are you sure you want to discard it? This action cannot be undone.</string>
+    <string name="import_routine">Import routine</string>
+    <string name="export_routine">Export routine</string>
 
 
     <!--Info workout screen-->

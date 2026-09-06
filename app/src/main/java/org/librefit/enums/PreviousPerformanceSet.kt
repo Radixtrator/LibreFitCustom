@@ -12,9 +12,18 @@ import org.librefit.models.Weight
 
 /**
  * It is used to display the previous of a set in a [org.librefit.ui.components.ExerciseCard]
+ *
+ * @property reps The repetitions performed in the previous session.
+ * @property load The load lifted in the previous session.
+ * @property time The time elapsed in the previous session.
+ * @property suggestedLoad The load to aim for in the current session. It is not null only when the
+ * exercise has a [org.librefit.db.entity.Exercise.weightIncrement] configured and every set of the
+ * previous session was completed without being marked as [org.librefit.db.entity.Set.failed].
+ * Refer to [org.librefit.util.WeightProgression].
  */
 data class PreviousPerformanceSet(
     val reps: Int = 0,
     val load: Weight = Weight.zero(),
-    val time: Int = 0
+    val time: Int = 0,
+    val suggestedLoad: Weight? = null
 )

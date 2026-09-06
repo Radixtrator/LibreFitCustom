@@ -55,7 +55,9 @@ import org.librefit.ui.models.UiWorkoutWithExercisesAndSets
 import org.librefit.ui.models.mappers.toEntity
 import org.librefit.ui.models.mappers.toUi
 import org.librefit.ui.models.moveExercise
+import org.librefit.ui.models.withAmrap
 import org.librefit.ui.models.withNormalizedExercisePositions
+import org.librefit.util.WeightProgression
 import javax.inject.Inject
 import kotlin.random.Random
 import kotlin.time.Duration.Companion.milliseconds
@@ -131,19 +133,37 @@ class WorkoutScreenViewModel @Inject constructor(
                 val previousEWS =
                     previousWorkout?.exercisesWithSets?.find { it.exerciseDC.id == eWs.exerciseDC.id }
 
+                // The load goes up only when the whole previous session of this exercise went well
+                val previousSessionSuccessful =
+                    WeightProgression.isSessionSuccessful(previousEWS?.sets.orEmpty())
+                val incrementMultiplier =
+                    WeightProgression.incrementMultiplier(previousEWS?.sets.orEmpty())
                 List(eWs.sets.size) { index ->
                     val previousSet = previousEWS?.sets?.getOrNull(index)
                     val reps = previousSet?.reps ?: 0
                     val load = previousSet?.load ?: Weight.zero()
                     val time = previousSet?.elapsedTime ?: 0
-
+                    val suggestedLoad = previousSet?.let {
+                        WeightProgression.suggestedLoad(
+                            previousLoad = load,
+                            increment = eWs.exercise.weightIncrement,
+                            sessionSuccessful = previousSessionSuccessful,
+                            incrementMultiplier = incrementMultiplier
+                        )
+                    }
 
                     when (eWs.exercise.setMode) {
-                        SetMode.LOAD -> PreviousPerformanceSet(load = load, reps = reps)
+                        SetMode.LOAD -> PreviousPerformanceSet(
+                            load = load,
+                            reps = reps,
+                            suggestedLoad = suggestedLoad
+                        )
+
                         SetMode.BODYWEIGHT -> PreviousPerformanceSet(reps = reps)
                         SetMode.BODYWEIGHT_WITH_LOAD -> PreviousPerformanceSet(
                             load = load,
-                            reps = reps
+                            reps = reps,
+                            suggestedLoad = suggestedLoad
                         )
 
                         SetMode.DURATION -> PreviousPerformanceSet(time = time)
@@ -168,9 +188,11 @@ class WorkoutScreenViewModel @Inject constructor(
 
             previousPerformanceSet?.let { values ->
                 val (reps, load, time) = values
+                // When the previous session was fully completed, apply the progressed load instead
+                val loadToApply = values.suggestedLoad ?: load
                 when (eWs.exercise.setMode) {
                     SetMode.LOAD -> {
-                        updateSetLoad(load, setId)
+                        updateSetLoad(loadToApply, setId)
                         updateSetReps(reps, setId)
                     }
 
@@ -179,7 +201,7 @@ class WorkoutScreenViewModel @Inject constructor(
                     }
 
                     SetMode.BODYWEIGHT_WITH_LOAD -> {
-                        updateSetLoad(load, setId)
+                        updateSetLoad(loadToApply, setId)
                         updateSetReps(reps, setId)
                     }
 
@@ -338,6 +360,48 @@ class WorkoutScreenViewModel @Inject constructor(
         syncToRepository()
     }
 
+    /**
+     * Flags the set as an AMRAP one, or clears the flag. Refer to [org.librefit.db.entity.Set.isAmrap].
+     *
+     * Turning the flag on seeds the target from the planned repetitions, refer to
+     * [org.librefit.ui.models.withAmrap].
+     */
+    fun updateSetIsAmrap(isAmrap: Boolean, id: Long) {
+        _exercises.update { currentExercises ->
+            currentExercises.map { exercise ->
+                if (exercise.sets.any { it.id == id }) {
+                    exercise.copy(
+                        sets = exercise.sets.map {
+                            if (it.id == id) it.withAmrap(isAmrap) else it
+                        }.toImmutableList()
+                    )
+                } else exercise
+            }
+        }
+        syncToRepository()
+    }
+
+    /**
+     * Sets the amount of repetitions an AMRAP set is planned for, i.e. the baseline the performed
+     * repetitions are compared against. Refer to [org.librefit.db.entity.Set.targetReps].
+     */
+    fun updateSetTargetReps(targetReps: Int, id: Long) {
+        _exercises.update { currentExercises ->
+            currentExercises.map { exercise ->
+                if (exercise.sets.any { it.id == id }) {
+                    exercise.copy(
+                        sets = exercise.sets.map {
+                            if (it.id == id) {
+                                it.copy(targetReps = targetReps.coerceAtLeast(0))
+                            } else it
+                        }.toImmutableList()
+                    )
+                } else exercise
+            }
+        }
+        syncToRepository()
+    }
+
     fun updateSetLoad(load: Weight, id: Long) {
         _exercises.update { currentExercises ->
             currentExercises.map { exercise ->
@@ -372,6 +436,27 @@ class WorkoutScreenViewModel @Inject constructor(
         syncToRepository()
     }
 
+    /**
+     * Marks a set as performed but short of the planned repetitions. A missed set is implicitly
+     * completed, since the user did train it, but it stops the load of this exercise from being
+     * increased in the next session. Refer to [org.librefit.util.WeightProgression].
+     */
+    fun updateSetFailed(failed: Boolean, id: Long) {
+        _exercises.update { currentExercises ->
+            currentExercises.map { exercise ->
+                if (exercise.sets.any { it.id == id }) {
+                    exercise.copy(
+                        sets = exercise.sets.map {
+                            if (it.id == id) {
+                                it.copy(failed = failed, completed = if (failed) true else it.completed)
+                            } else it
+                        }.toImmutableList()
+                    )
+                } else exercise
+            }
+        }
+        syncToRepository()
+    }
     fun deleteSet(id: Long) {
         // If there's the match, then the set has a running stopwatch and it has to be stopped by assigning null
         if (idSetWithRunningStopwatch.value == id) {
@@ -403,6 +488,20 @@ class WorkoutScreenViewModel @Inject constructor(
         _exercises.update { currentExercises ->
             currentExercises.map { eWs ->
                 if (eWs.exercise.id == id) eWs.copy(exercise = eWs.exercise.copy(restTime = restTime)) else eWs
+            }
+        }
+        syncToRepository()
+    }
+
+    /**
+     * Updates [org.librefit.ui.models.UiExercise.weightIncrement], i.e. how much heavier the
+     * suggestion for the next session gets once every set of the exercise is completed without
+     * being marked as missed. Refer to [org.librefit.util.WeightProgression].
+     */
+    fun updateExerciseWeightIncrement(weightIncrement: Weight, id: Long) {
+        _exercises.update { currentExercises ->
+            currentExercises.map { eWs ->
+                if (eWs.exercise.id == id) eWs.copy(exercise = eWs.exercise.copy(weightIncrement = weightIncrement)) else eWs
             }
         }
         syncToRepository()
