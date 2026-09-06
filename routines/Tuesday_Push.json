@@ -1,0 +1,87 @@
+{
+  "version": 1,
+  "workout": {
+    "id": 0,
+    "routineId": 1002,
+    "title": "Tuesday (Push)",
+    "notes": "3x5 SM Bench Press, 3x8-12 DB OHP, 3x8-12 Decline DB Press, 3x8-12 Tricep Pushdown SS 3x15 Lat Raise SS 3x5 Front Raise, 3x8-12 Tricep Extension SS 3x15 Lat Raise SS 3x5 Front Raise",
+    "state": "ROUTINE",
+    "timeElapsed": 0,
+    "created": "2026-08-29T00:00:00",
+    "completed": "2026-08-29T00:00:00"
+  },
+  "exercisesWithSets": [
+    {
+      "exercise": {"id": 0, "idExerciseDC": "Barbell_Bench_Press_-_Medium_Grip", "notes": "5", "setMode": "LOAD", "restTime": 90, "position": 0, "supersetGroupId": null, "workoutId": 0},
+      "sets": [
+        {"id": 0, "load": 0.0, "reps": 5, "elapsedTime": 0, "completed": false, "exerciseId": 0},
+        {"id": 0, "load": 0.0, "reps": 5, "elapsedTime": 0, "completed": false, "exerciseId": 0},
+        {"id": 0, "load": 0.0, "reps": 5, "elapsedTime": 0, "completed": false, "exerciseId": 0}
+      ]
+    },
+    {
+      "exercise": {"id": 0, "idExerciseDC": "Dumbbell_Shoulder_Press", "notes": "8-12", "setMode": "LOAD", "restTime": 90, "position": 1, "supersetGroupId": null, "workoutId": 0},
+      "sets": [
+        {"id": 0, "load": 0.0, "reps": 8, "elapsedTime": 0, "completed": false, "exerciseId": 0},
+        {"id": 0, "load": 0.0, "reps": 8, "elapsedTime": 0, "completed": false, "exerciseId": 0},
+        {"id": 0, "load": 0.0, "reps": 8, "elapsedTime": 0, "completed": false, "exerciseId": 0}
+      ]
+    },
+    {
+      "exercise": {"id": 0, "idExerciseDC": "Decline_Dumbbell_Bench_Press", "notes": "8-12", "setMode": "LOAD", "restTime": 90, "position": 2, "supersetGroupId": null, "workoutId": 0},
+      "sets": [
+        {"id": 0, "load": 0.0, "reps": 8, "elapsedTime": 0, "completed": false, "exerciseId": 0},
+        {"id": 0, "load": 0.0, "reps": 8, "elapsedTime": 0, "completed": false, "exerciseId": 0},
+        {"id": 0, "load": 0.0, "reps": 8, "elapsedTime": 0, "completed": false, "exerciseId": 0}
+      ]
+    },
+    {
+      "exercise": {"id": 0, "idExerciseDC": "Triceps_Pushdown", "notes": "8-12", "setMode": "LOAD", "restTime": 90, "position": 3, "supersetGroupId": 2, "workoutId": 0},
+      "sets": [
+        {"id": 0, "load": 0.0, "reps": 8, "elapsedTime": 0, "completed": false, "exerciseId": 0},
+        {"id": 0, "load": 0.0, "reps": 8, "elapsedTime": 0, "completed": false, "exerciseId": 0},
+        {"id": 0, "load": 0.0, "reps": 8, "elapsedTime": 0, "completed": false, "exerciseId": 0}
+      ]
+    },
+    {
+      "exercise": {"id": 0, "idExerciseDC": "Side_Lateral_Raise", "notes": "15", "setMode": "LOAD", "restTime": 90, "position": 4, "supersetGroupId": 2, "workoutId": 0},
+      "sets": [
+        {"id": 0, "load": 0.0, "reps": 15, "elapsedTime": 0, "completed": false, "exerciseId": 0},
+        {"id": 0, "load": 0.0, "reps": 15, "elapsedTime": 0, "completed": false, "exerciseId": 0},
+        {"id": 0, "load": 0.0, "reps": 15, "elapsedTime": 0, "completed": false, "exerciseId": 0}
+      ]
+    },
+    {
+      "exercise": {"id": 0, "idExerciseDC": "Front_Dumbbell_Raise", "notes": "5", "setMode": "LOAD", "restTime": 90, "position": 5, "supersetGroupId": 2, "workoutId": 0},
+      "sets": [
+        {"id": 0, "load": 0.0, "reps": 5, "elapsedTime": 0, "completed": false, "exerciseId": 0},
+        {"id": 0, "load": 0.0, "reps": 5, "elapsedTime": 0, "completed": false, "exerciseId": 0},
+        {"id": 0, "load": 0.0, "reps": 5, "elapsedTime": 0, "completed": false, "exerciseId": 0}
+      ]
+    },
+    {
+      "exercise": {"id": 0, "idExerciseDC": "Dumbbell_Tricep_Extension_-Pronated_Grip", "notes": "8-12", "setMode": "LOAD", "restTime": 90, "position": 6, "supersetGroupId": 3, "workoutId": 0},
+      "sets": [
+        {"id": 0, "load": 0.0, "reps": 8, "elapsedTime": 0, "completed": false, "exerciseId": 0},
+        {"id": 0, "load": 0.0, "reps": 8, "elapsedTime": 0, "completed": false, "exerciseId": 0},
+        {"id": 0, "load": 0.0, "reps": 8, "elapsedTime": 0, "completed": false, "exerciseId": 0}
+      ]
+    },
+    {
+      "exercise": {"id": 0, "idExerciseDC": "Side_Lateral_Raise", "notes": "15", "setMode": "LOAD", "restTime": 90, "position": 7, "supersetGroupId": 3, "workoutId": 0},
+      "sets": [
+        {"id": 0, "load": 0.0, "reps": 15, "elapsedTime": 0, "completed": false, "exerciseId": 0},
+        {"id": 0, "load": 0.0, "reps": 15, "elapsedTime": 0, "completed": false, "exerciseId": 0},
+        {"id": 0, "load": 0.0, "reps": 15, "elapsedTime": 0, "completed": false, "exerciseId": 0}
+      ]
+    },
+    {
+      "exercise": {"id": 0, "idExerciseDC": "Front_Dumbbell_Raise", "notes": "5", "setMode": "LOAD", "restTime": 90, "position": 8, "supersetGroupId": 3, "workoutId": 0},
+      "sets": [
+        {"id": 0, "load": 0.0, "reps": 5, "elapsedTime": 0, "completed": false, "exerciseId": 0},
+        {"id": 0, "load": 0.0, "reps": 5, "elapsedTime": 0, "completed": false, "exerciseId": 0},
+        {"id": 0, "load": 0.0, "reps": 5, "elapsedTime": 0, "completed": false, "exerciseId": 0}
+      ]
+    }
+  ]
+}

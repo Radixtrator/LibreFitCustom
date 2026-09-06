@@ -1,0 +1,66 @@
+{
+  "version": 1,
+  "workout": {
+    "id": 0,
+    "routineId": 1004,
+    "title": "Thursday (Pull)",
+    "notes": "3x5 SM Bent-over Row, 3x8-12 Pullups, 3x8-12 Seated Cable Row, 4x8-12 Hammer Curls SS 4x12-15 Face Pulls, 4x8-12 Dumbbell Curls",
+    "state": "ROUTINE",
+    "timeElapsed": 0,
+    "created": "2026-08-29T00:00:00",
+    "completed": "2026-08-29T00:00:00"
+  },
+  "exercisesWithSets": [
+    {
+      "exercise": {"id": 0, "idExerciseDC": "Bent_Over_Barbell_Row", "notes": "5", "setMode": "LOAD", "restTime": 90, "position": 0, "supersetGroupId": null, "workoutId": 0},
+      "sets": [
+        {"id": 0, "load": 0.0, "reps": 5, "elapsedTime": 0, "completed": false, "exerciseId": 0},
+        {"id": 0, "load": 0.0, "reps": 5, "elapsedTime": 0, "completed": false, "exerciseId": 0},
+        {"id": 0, "load": 0.0, "reps": 5, "elapsedTime": 0, "completed": false, "exerciseId": 0}
+      ]
+    },
+    {
+      "exercise": {"id": 0, "idExerciseDC": "Pullups", "notes": "8-12", "setMode": "LOAD", "restTime": 90, "position": 1, "supersetGroupId": null, "workoutId": 0},
+      "sets": [
+        {"id": 0, "load": 0.0, "reps": 8, "elapsedTime": 0, "completed": false, "exerciseId": 0},
+        {"id": 0, "load": 0.0, "reps": 8, "elapsedTime": 0, "completed": false, "exerciseId": 0},
+        {"id": 0, "load": 0.0, "reps": 8, "elapsedTime": 0, "completed": false, "exerciseId": 0}
+      ]
+    },
+    {
+      "exercise": {"id": 0, "idExerciseDC": "Seated_Cable_Rows", "notes": "8-12", "setMode": "LOAD", "restTime": 90, "position": 2, "supersetGroupId": null, "workoutId": 0},
+      "sets": [
+        {"id": 0, "load": 0.0, "reps": 8, "elapsedTime": 0, "completed": false, "exerciseId": 0},
+        {"id": 0, "load": 0.0, "reps": 8, "elapsedTime": 0, "completed": false, "exerciseId": 0},
+        {"id": 0, "load": 0.0, "reps": 8, "elapsedTime": 0, "completed": false, "exerciseId": 0}
+      ]
+    },
+    {
+      "exercise": {"id": 0, "idExerciseDC": "Hammer_Curls", "notes": "8-12", "setMode": "LOAD", "restTime": 90, "position": 3, "supersetGroupId": 5, "workoutId": 0},
+      "sets": [
+        {"id": 0, "load": 0.0, "reps": 8, "elapsedTime": 0, "completed": false, "exerciseId": 0},
+        {"id": 0, "load": 0.0, "reps": 8, "elapsedTime": 0, "completed": false, "exerciseId": 0},
+        {"id": 0, "load": 0.0, "reps": 8, "elapsedTime": 0, "completed": false, "exerciseId": 0},
+        {"id": 0, "load": 0.0, "reps": 8, "elapsedTime": 0, "completed": false, "exerciseId": 0}
+      ]
+    },
+    {
+      "exercise": {"id": 0, "idExerciseDC": "Face_Pull", "notes": "12-15", "setMode": "LOAD", "restTime": 90, "position": 4, "supersetGroupId": 5, "workoutId": 0},
+      "sets": [
+        {"id": 0, "load": 0.0, "reps": 12, "elapsedTime": 0, "completed": false, "exerciseId": 0},
+        {"id": 0, "load": 0.0, "reps": 12, "elapsedTime": 0, "completed": false, "exerciseId": 0},
+        {"id": 0, "load": 0.0, "reps": 12, "elapsedTime": 0, "completed": false, "exerciseId": 0},
+        {"id": 0, "load": 0.0, "reps": 12, "elapsedTime": 0, "completed": false, "exerciseId": 0}
+      ]
+    },
+    {
+      "exercise": {"id": 0, "idExerciseDC": "Dumbbell_Bicep_Curl", "notes": "8-12", "setMode": "LOAD", "restTime": 90, "position": 5, "supersetGroupId": null, "workoutId": 0},
+      "sets": [
+        {"id": 0, "load": 0.0, "reps": 8, "elapsedTime": 0, "completed": false, "exerciseId": 0},
+        {"id": 0, "load": 0.0, "reps": 8, "elapsedTime": 0, "completed": false, "exerciseId": 0},
+        {"id": 0, "load": 0.0, "reps": 8, "elapsedTime": 0, "completed": false, "exerciseId": 0},
+        {"id": 0, "load": 0.0, "reps": 8, "elapsedTime": 0, "completed": false, "exerciseId": 0}
+      ]
+    }
+  ]
+}

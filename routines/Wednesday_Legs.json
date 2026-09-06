@@ -1,0 +1,55 @@
+{
+  "version": 1,
+  "workout": {
+    "id": 0,
+    "routineId": 1003,
+    "title": "Wednesday (Legs)",
+    "notes": "3x5 SM Low Bar Squat, 3x8-12 SM Romanian Deadlift, 3x8-12 Leg Press SS 3x30 Calf Raises, 3x8-12 Seated Leg Curls",
+    "state": "ROUTINE",
+    "timeElapsed": 0,
+    "created": "2026-08-29T00:00:00",
+    "completed": "2026-08-29T00:00:00"
+  },
+  "exercisesWithSets": [
+    {
+      "exercise": {"id": 0, "idExerciseDC": "Barbell_Squat", "notes": "5", "setMode": "LOAD", "restTime": 90, "position": 0, "supersetGroupId": null, "workoutId": 0},
+      "sets": [
+        {"id": 0, "load": 0.0, "reps": 5, "elapsedTime": 0, "completed": false, "exerciseId": 0},
+        {"id": 0, "load": 0.0, "reps": 5, "elapsedTime": 0, "completed": false, "exerciseId": 0},
+        {"id": 0, "load": 0.0, "reps": 5, "elapsedTime": 0, "completed": false, "exerciseId": 0}
+      ]
+    },
+    {
+      "exercise": {"id": 0, "idExerciseDC": "Romanian_Deadlift", "notes": "8-12", "setMode": "LOAD", "restTime": 90, "position": 1, "supersetGroupId": null, "workoutId": 0},
+      "sets": [
+        {"id": 0, "load": 0.0, "reps": 8, "elapsedTime": 0, "completed": false, "exerciseId": 0},
+        {"id": 0, "load": 0.0, "reps": 8, "elapsedTime": 0, "completed": false, "exerciseId": 0},
+        {"id": 0, "load": 0.0, "reps": 8, "elapsedTime": 0, "completed": false, "exerciseId": 0}
+      ]
+    },
+    {
+      "exercise": {"id": 0, "idExerciseDC": "Leg_Press", "notes": "8-12", "setMode": "LOAD", "restTime": 90, "position": 2, "supersetGroupId": 4, "workoutId": 0},
+      "sets": [
+        {"id": 0, "load": 0.0, "reps": 8, "elapsedTime": 0, "completed": false, "exerciseId": 0},
+        {"id": 0, "load": 0.0, "reps": 8, "elapsedTime": 0, "completed": false, "exerciseId": 0},
+        {"id": 0, "load": 0.0, "reps": 8, "elapsedTime": 0, "completed": false, "exerciseId": 0}
+      ]
+    },
+    {
+      "exercise": {"id": 0, "idExerciseDC": "Calf_Raises_-_With_Bands", "notes": "30", "setMode": "LOAD", "restTime": 90, "position": 3, "supersetGroupId": 4, "workoutId": 0},
+      "sets": [
+        {"id": 0, "load": 0.0, "reps": 30, "elapsedTime": 0, "completed": false, "exerciseId": 0},
+        {"id": 0, "load": 0.0, "reps": 30, "elapsedTime": 0, "completed": false, "exerciseId": 0},
+        {"id": 0, "load": 0.0, "reps": 30, "elapsedTime": 0, "completed": false, "exerciseId": 0}
+      ]
+    },
+    {
+      "exercise": {"id": 0, "idExerciseDC": "Seated_Leg_Curl", "notes": "8-12", "setMode": "LOAD", "restTime": 90, "position": 4, "supersetGroupId": null, "workoutId": 0},
+      "sets": [
+        {"id": 0, "load": 0.0, "reps": 8, "elapsedTime": 0, "completed": false, "exerciseId": 0},
+        {"id": 0, "load": 0.0, "reps": 8, "elapsedTime": 0, "completed": false, "exerciseId": 0},
+        {"id": 0, "load": 0.0, "reps": 8, "elapsedTime": 0, "completed": false, "exerciseId": 0}
+      ]
+    }
+  ]
+}
