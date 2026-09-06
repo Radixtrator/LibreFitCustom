@@ -326,12 +326,15 @@ private fun SharedTransitionScope.HomeScreenContent(
 
 
         item {
+            HeadlineText(stringResource(id = R.string.your_routines))
+        }
+
+        // HeadlineText fills the width on its own, so the action gets a row of its own
+        item {
             Row(
                 modifier = Modifier.fillMaxWidth(),
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.SpaceBetween
+                horizontalArrangement = Arrangement.Center
             ) {
-                HeadlineText(stringResource(id = R.string.your_routines))
                 OutlinedButton(onClick = onImportRoutine) {
                     Text(text = stringResource(R.string.import_routine))
                 }
