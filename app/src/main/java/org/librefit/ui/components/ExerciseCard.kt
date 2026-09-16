@@ -16,6 +16,7 @@ import androidx.compose.animation.SharedTransitionLayout
 import androidx.compose.animation.SharedTransitionScope
 import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.animateContentSize
+import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.focusable
@@ -32,6 +33,7 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.wrapContentWidth
 import androidx.compose.foundation.shape.CornerSize
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.text.input.TextFieldLineLimits
 import androidx.compose.foundation.text.input.rememberTextFieldState
@@ -76,6 +78,7 @@ import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.rotate
 import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
@@ -83,6 +86,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.ColorFilter
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
@@ -91,6 +95,7 @@ import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.semantics.stateDescription
 import androidx.compose.ui.state.ToggleableState
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
@@ -109,7 +114,8 @@ import org.librefit.enums.userPreferences.ThemeMode
 import org.librefit.enums.userPreferences.UnitSystem
 import org.librefit.models.Weight
 import org.librefit.nav.LocalUnitSystem
-import org.librefit.ui.components.dialogs.AmrapSetDialog
+import org.librefit.ui.components.dialogs.AmrapRepsDialog
+import org.librefit.ui.components.dialogs.SetSettingsDialog
 import org.librefit.ui.components.modalBottomSheets.InputModalBottomSheet
 import org.librefit.ui.models.InputModalBottomSheetState
 import org.librefit.ui.models.UiExercise
@@ -186,7 +192,8 @@ import kotlin.time.Duration.Companion.seconds
  * based on [UiSet.id]. For more details, refer to
  * [org.librefit.ui.screens.workout.WorkoutScreenViewModel.updateSetTargetReps] and
  * [org.librefit.ui.screens.editWorkout.EditWorkoutScreenViewModel.updateSetTargetReps].
- * @param deleteSet A function called when the user swipes the set to remove it.
+ * @param deleteSet A function called when the user removes the set from its dialog, or swipes
+ * it away outside a workout, where a swipe has nothing to mark.
  * @param showInfo A lambda function executed when info icon next to "type of set" or "rest time" text
  * is clicked. The passed parameter is used by [org.librefit.ui.components.modalBottomSheets.InfoModalBottomSheet] to show the relevant information.
  * @param idSetWithRunningStopwatch The ID of the set whose stopwatch is currently active. This ensures
@@ -196,6 +203,8 @@ import kotlin.time.Duration.Companion.seconds
  * running stopwatch. It provides the ID of the set that should become active, or null to stop the current timer.
  * This parameter is only used when [workout] is `true`.
  * @param workout A Boolean flag indicating whether a checkbox should be displayed next to each set.
+ * When `true`, swiping a set marks it as done or as missed reps instead of removing it, and the
+ * card folds itself away once every set is completed.
  * @param applyPreviousSetPerformance Triggered when the user clicks the previous set performance
  * (on the left to the set counter) * and should update the current set with the values of the previous set.
  */
@@ -241,6 +250,23 @@ fun SharedTransitionScope.ExerciseCard(
     val unit = autoUnitSuffix()
 
     var showMenu by rememberSaveable { mutableStateOf(false) }
+
+    // A finished exercise has nothing left to fill in, so it folds away to keep the rest of the
+    // workout in reach. Outside a workout no set is ever completed, so nothing folds there
+    val isExerciseDone = workout && exerciseWithSets.sets.isNotEmpty() &&
+            exerciseWithSets.sets.all { it.completed }
+    var isDoneExerciseExpanded by rememberSaveable { mutableStateOf(false) }
+    // Undoing a set brings the card back on its own, and finishing the exercise again folds it away
+    // anew rather than leaving it open because it was unfolded by hand once
+    LaunchedEffect(isExerciseDone) {
+        if (!isExerciseDone) isDoneExerciseExpanded = false
+    }
+    val isBodyHidden = isCollapsed || (isExerciseDone && !isDoneExerciseExpanded)
+    val foldArrowRotation by animateFloatAsState(
+        targetValue = if (isBodyHidden) 0f else 180f,
+        label = "animated_rotation_for_fold_arrow"
+    )
+
     val shape = MaterialTheme.shapes.extraLarge
     ElevatedCard(
         modifier = modifier.then(
@@ -267,7 +293,7 @@ fun SharedTransitionScope.ExerciseCard(
                     modifier = Modifier
                         .weight(1f)
                         .clip(MaterialTheme.shapes.medium)
-                        .clickable(enabled = !isCollapsed) {
+                        .clickable(enabled = !isBodyHidden) {
                             onDetail(exerciseWithSets.exercise.id, exerciseWithSets.exerciseDC.id)
                         },
                     verticalAlignment = Alignment.CenterVertically
@@ -301,6 +327,19 @@ fun SharedTransitionScope.ExerciseCard(
                         overflow = TextOverflow.Ellipsis,
                         modifier = Modifier.weight(1f)
                     )
+                }
+                AnimatedVisibility(visible = isExerciseDone && !isCollapsed) {
+                    IconButton(
+                        onClick = { isDoneExerciseExpanded = !isDoneExerciseExpanded }
+                    ) {
+                        Icon(
+                            painter = painterResource(R.drawable.ic_drop_down),
+                            contentDescription = stringResource(
+                                if (isBodyHidden) R.string.show else R.string.hide
+                            ),
+                            modifier = Modifier.rotate(foldArrowRotation)
+                        )
+                    }
                 }
                 Column {
                     AnimatedContent(
@@ -390,7 +429,7 @@ fun SharedTransitionScope.ExerciseCard(
                 }
             }
 
-            AnimatedVisibility(visible = !isCollapsed) {
+            AnimatedVisibility(visible = !isBodyHidden) {
                 Column(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalAlignment = Alignment.CenterHorizontally,
@@ -799,6 +838,10 @@ private fun Set(
     applyPreviousSet: (Long) -> Unit
 ) {
     val unitSystem = LocalUnitSystem.current
+    val focusManager = LocalFocusManager.current
+
+    // The progression rewards beating the target only where a load can actually go up
+    val isAmrapAvailable = setMode == SetMode.LOAD || setMode == SetMode.BODYWEIGHT_WITH_LOAD
 
     val timeTextFieldState = rememberTextFieldState(
         initialText = Formatter.formateSecondsInMinutesAndSeconds(set.elapsedTime)
@@ -837,6 +880,26 @@ private fun Set(
 
     val swipeToDismissBoxState = rememberSwipeToDismissBoxState()
 
+    // Ticking off an AMRAP set asks how far it actually went: such a set is about beating the
+    // target rather than hitting the planned repetitions, which is only known once it is over
+    var showAmrapRepsDialog by remember { mutableStateOf(false) }
+
+    // A set is logged the same way whether it is ticked off or swiped
+    val stopStopwatchIfRunning = {
+        if (isThisSetStopwatchRunning) updateIdSetWithRunningStopwatch(null)
+    }
+    val markSetCompleted = {
+        if (set.isAmrap && isAmrapAvailable) {
+            showAmrapRepsDialog = true
+        } else {
+            updateSetCompleted(true, set.id)
+        }
+    }
+    val clearSet = {
+        updateSetFailed(false, set.id)
+        updateSetCompleted(false, set.id)
+    }
+
     var inputModalBottomSheetState by remember { mutableStateOf<InputModalBottomSheetState?>(null) }
     var inputSetId by rememberSaveable { mutableStateOf<Long?>(null) }
 
@@ -874,6 +937,20 @@ private fun Set(
         )
     }
 
+    if (showAmrapRepsDialog) {
+        AmrapRepsDialog(
+            reps = set.reps,
+            targetReps = set.targetReps,
+            onConfirm = { performedReps ->
+                showAmrapRepsDialog = false
+                updateSetReps(performedReps, set.id)
+                updateSetCompleted(true, set.id)
+            },
+            // Backing out leaves the set open, since it is not known how it went
+            onDismiss = { showAmrapRepsDialog = false }
+        )
+    }
+
     val haptic = LocalHapticFeedback.current
     LaunchedEffect(swipeToDismissBoxState.currentValue) {
         if (swipeToDismissBoxState.currentValue != SwipeToDismissBoxValue.Settled) {
@@ -881,10 +958,40 @@ private fun Set(
         }
     }
 
+    // While training, the row is a log of what happened rather than a plan being written, so a
+    // swipe marks how the set went and the row returns to its place. Removing it lives in the set
+    // dialog instead. Outside a workout there is nothing to mark, so the swipe still removes it.
+    // The settled value is the only key here: the box calls its onDismiss again on every
+    // recomposition, which would toggle the set a second time
+    LaunchedEffect(swipeToDismissBoxState.settledValue) {
+        val swipe = swipeToDismissBoxState.settledValue
+        if (!workout || swipe == SwipeToDismissBoxValue.Settled) return@LaunchedEffect
+
+        // The row comes home before anything is logged: completing the last set folds the whole
+        // card away, which would take this effect with it and leave the row remembered as swiped
+        swipeToDismissBoxState.reset()
+
+        stopStopwatchIfRunning()
+        when (swipe) {
+            // Swiping forwards logs the set as done, and takes it back when it already was
+            SwipeToDismissBoxValue.StartToEnd ->
+                if (set.completed) clearSet() else markSetCompleted()
+
+            // Swiping backwards is the second tap of the checkbox: the set was trained, but short
+            // of the planned repetitions
+            else -> updateSetFailed(!set.failed, set.id)
+        }
+    }
+
     SwipeToDismissBox(
         state = swipeToDismissBoxState,
-        onDismiss = { deleteSet(set.id) },
+        // While training, the swipe marks how the set went instead, refer to the effect above
+        onDismiss = { if (!workout) deleteSet(set.id) },
         backgroundContent = {
+            val direction = swipeToDismissBoxState.dismissDirection
+            // Swiping a set forwards is about to mark it as done, which is the only swipe not
+            // carrying bad news
+            val isMarkingAsDone = workout && direction == SwipeToDismissBoxValue.StartToEnd
             Row(
                 modifier = Modifier
                     .fillMaxSize()
@@ -901,24 +1008,38 @@ private fun Set(
                         )
                     )
                     .background(
-                        when (swipeToDismissBoxState.dismissDirection) {
-                            SwipeToDismissBoxValue.StartToEnd -> MaterialTheme.colorScheme.errorContainer
-                            SwipeToDismissBoxValue.EndToStart -> MaterialTheme.colorScheme.errorContainer
-                            SwipeToDismissBoxValue.Settled -> Color.Transparent
+                        when {
+                            direction == SwipeToDismissBoxValue.Settled -> Color.Transparent
+                            isMarkingAsDone -> MaterialTheme.colorScheme.tertiaryContainer
+                            else -> MaterialTheme.colorScheme.errorContainer
                         }
                     )
                     .padding(start = 10.dp, end = 10.dp),
                 verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = when (swipeToDismissBoxState.dismissDirection) {
+                horizontalArrangement = when (direction) {
                     SwipeToDismissBoxValue.EndToStart -> Arrangement.End
                     SwipeToDismissBoxValue.Settled -> Arrangement.Start
                     SwipeToDismissBoxValue.StartToEnd -> Arrangement.Start
                 }
             ) {
+                val actionIcon = when {
+                    !workout -> R.drawable.ic_delete
+                    isMarkingAsDone -> R.drawable.ic_check
+                    else -> R.drawable.ic_cancel
+                }
+                val actionDescription = when {
+                    !workout -> R.string.delete
+                    isMarkingAsDone -> R.string.done
+                    else -> R.string.missed_reps
+                }
                 Icon(
-                    painter = painterResource(R.drawable.ic_delete),
-                    contentDescription = stringResource(R.string.delete),
-                    tint = MaterialTheme.colorScheme.onErrorContainer
+                    painter = painterResource(actionIcon),
+                    contentDescription = stringResource(actionDescription),
+                    tint = if (isMarkingAsDone) {
+                        MaterialTheme.colorScheme.onTertiaryContainer
+                    } else {
+                        MaterialTheme.colorScheme.onErrorContainer
+                    }
                 )
             }
         }
@@ -958,16 +1079,13 @@ private fun Set(
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.SpaceBetween
         ) {
-            // The progression rewards beating the target only where a load can actually go up
-            val isAmrapAvailable =
-                setMode == SetMode.LOAD || setMode == SetMode.BODYWEIGHT_WITH_LOAD
             var showSetMenu by remember { mutableStateOf(false) }
 
             Box(modifier = Modifier.padding(start = 12.dp)) {
                 Column(
                     modifier = Modifier
                         .clip(MaterialTheme.shapes.medium)
-                        .clickable(enabled = isAmrapAvailable) { showSetMenu = true }
+                        .clickable { showSetMenu = true }
                         .padding(horizontal = 8.dp, vertical = 4.dp),
                     horizontalAlignment = Alignment.CenterHorizontally
                 ) {
@@ -994,9 +1112,14 @@ private fun Set(
                     }
                 }
                 if (showSetMenu) {
-                    AmrapSetDialog(
+                    SetSettingsDialog(
                         isAmrap = set.isAmrap,
                         targetReps = set.targetReps,
+                        isAmrapAvailable = isAmrapAvailable,
+                        onDelete = {
+                            showSetMenu = false
+                            deleteSet(set.id)
+                        },
                         onConfirm = { isAmrap, targetReps ->
                             showSetMenu = false
                             updateSetIsAmrap(isAmrap, set.id)
@@ -1073,7 +1196,13 @@ private fun Set(
                             lineLimits = TextFieldLineLimits.SingleLine,
                             inputTransformation = TimeInputTransformation(),
                             outputTransformation = TimeOutputTransformation(),
-                            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                            keyboardOptions = KeyboardOptions(
+                                keyboardType = KeyboardType.Number,
+                                imeAction = ImeAction.Done
+                            ),
+                            // The value is written as it is typed, so there is nothing left to
+                            // confirm: the field just gets out of the way
+                            onKeyboardAction = { focusManager.clearFocus() },
                             colors = OutlinedTextFieldDefaults.colors(
                                 unfocusedBorderColor = Color.Transparent,
                                 focusedBorderColor = Color.Transparent,
@@ -1137,7 +1266,13 @@ private fun Set(
                                     )
                                 },
                                 singleLine = true,
-                                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
+                                keyboardOptions = KeyboardOptions(
+                                    keyboardType = KeyboardType.Decimal,
+                                    imeAction = ImeAction.Done
+                                ),
+                                keyboardActions = KeyboardActions(
+                                    onDone = { focusManager.clearFocus() }
+                                ),
                                 colors = OutlinedTextFieldDefaults.colors(
                                     unfocusedBorderColor = Color.Transparent,
                                     focusedBorderColor = Color.Transparent,
@@ -1190,7 +1325,13 @@ private fun Set(
                             }
                         },
                         singleLine = true,
-                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                        keyboardOptions = KeyboardOptions(
+                            keyboardType = KeyboardType.Number,
+                            imeAction = ImeAction.Done
+                        ),
+                        keyboardActions = KeyboardActions(
+                            onDone = { focusManager.clearFocus() }
+                        ),
                         colors = OutlinedTextFieldDefaults.colors(
                             unfocusedBorderColor = Color.Transparent,
                             focusedBorderColor = Color.Transparent,
@@ -1231,17 +1372,11 @@ private fun Set(
                         else -> ToggleableState.Off
                     },
                     onClick = {
-                        if (isThisSetStopwatchRunning) {
-                            updateIdSetWithRunningStopwatch(null)
-                        }
+                        stopStopwatchIfRunning()
                         when {
-                            set.failed -> {
-                                updateSetFailed(false, set.id)
-                                updateSetCompleted(false, set.id)
-                            }
-
+                            set.failed -> clearSet()
                             set.completed -> updateSetFailed(true, set.id)
-                            else -> updateSetCompleted(true, set.id)
+                            else -> markSetCompleted()
                         }
                     },
                     colors = CheckboxDefaults.colors(
