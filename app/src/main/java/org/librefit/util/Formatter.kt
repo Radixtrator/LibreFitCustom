@@ -27,12 +27,12 @@ import org.librefit.enums.userPreferences.DialogPreference
 import org.librefit.enums.userPreferences.Language
 import org.librefit.enums.userPreferences.ThemeMode
 import org.librefit.enums.userPreferences.UnitSystem
+import java.math.BigDecimal
+import java.math.RoundingMode
 import java.time.LocalDateTime
 import java.time.format.DateTimeFormatter
 import java.time.format.FormatStyle
 import java.util.Locale
-import kotlin.math.pow
-import kotlin.math.truncate
 
 object Formatter {
     fun exerciseEnumToStringId(enum: ExerciseProperty?): Int {
@@ -347,10 +347,23 @@ object Formatter {
         return (hours * 3600) + (minutes.coerceAtMost(59) * 60) + seconds.coerceAtMost(59)
     }
 
-
+    /**
+     * It returns the first [numberOfDigits] decimal digits of the receiver as an integer, e.g.
+     * 61.15 gives 15 and 61.5 gives 50. The decimal representation is used rather than the binary
+     * one, in which 61.15 - 61 is 0.14999999999999858 and would give 14.
+     *
+     * The digits after [numberOfDigits] are dropped, not rounded: pass a value already rounded to
+     * the displayed precision, e.g. [org.librefit.models.Weight.roundedValue], or 134.99999999999997
+     * gives 99.
+     */
     fun Double.getDecimalDigitsAsInteger(@IntRange(0, 8) numberOfDigits: Int = 2): Int {
-        val factor = 10.0.pow(numberOfDigits)
-        return ((this - truncate(this)) * factor).toInt()
+        if (!isFinite()) return 0
+
+        return BigDecimal.valueOf(this)
+            .remainder(BigDecimal.ONE)
+            .movePointRight(numberOfDigits)
+            .setScale(0, RoundingMode.DOWN)
+            .toInt()
     }
 }
 

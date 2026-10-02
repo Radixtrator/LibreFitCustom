@@ -247,26 +247,30 @@ fun InputModalBottomSheet(
                                     },
                                     textStyle = textStyle
                                 )
-                                Text(
-                                    text = ".",
-                                    style = textStyle
-                                )
-                                NumberPicker(
-                                    value = state.decimalWeight,
-                                    options = state.decimalWeightRange,
-                                    label = { it.toString().padStart(2, '0') },
-                                    onValueChange = {
-                                        onValueChange(
-                                            state.safeCopy(
-                                                decimalWeight = it
+                                // Pounds are picked as whole numbers, so there is no decimal part
+                                // to offer, refer to InputModalBottomSheetState.Weight.fromWeight
+                                if (state.hasDecimalPart) {
+                                    Text(
+                                        text = ".",
+                                        style = textStyle
+                                    )
+                                    NumberPicker(
+                                        value = state.decimalWeight,
+                                        options = state.decimalWeightRange,
+                                        label = { it.toString().padStart(2, '0') },
+                                        onValueChange = {
+                                            onValueChange(
+                                                state.safeCopy(
+                                                    decimalWeight = it
+                                                )
                                             )
-                                        )
-                                    },
-                                    onNumberPickerScroll = {
-                                        isAnyNumberPickerChanging = it
-                                    },
-                                    textStyle = textStyle
-                                )
+                                        },
+                                        onNumberPickerScroll = {
+                                            isAnyNumberPickerChanging = it
+                                        },
+                                        textStyle = textStyle
+                                    )
+                                }
 
                                 Spacer(Modifier.width(10.dp))
                                 Text(

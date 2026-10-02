@@ -28,10 +28,10 @@ import org.librefit.db.repository.UserPreferencesRepository
 import org.librefit.di.qualifiers.DefaultDispatcher
 import org.librefit.enums.MeasurementCardState
 import org.librefit.enums.chart.MeasurementChart
-import org.librefit.enums.userPreferences.UnitSystem
 import org.librefit.models.Weight
 import org.librefit.ui.components.charts.Point
 import org.librefit.ui.models.doubleValue
+import org.librefit.ui.models.parseWeightInput
 import org.librefit.util.Formatter
 import java.time.LocalDateTime
 import javax.inject.Inject
@@ -112,13 +112,15 @@ class MeasurementScreenViewModel @Inject constructor(
     private val _bodyweight = MutableStateFlow<Weight?>(null)
     val bodyWeight = _bodyweight.asStateFlow()
 
+    /**
+     * Updates the body weight from [newValue], the text typed by the user in the current unit
+     * system. In pounds, which are whole numbers, any decimal part is dropped, refer to
+     * [parseWeightInput]. An empty or unparsable text leaves no body weight.
+     */
     fun updateBodyweight(newValue: String) {
         _bodyweight.update {
-            Formatter.parseDoubleFromString(newValue)?.let { value ->
-                when (unitSystem.value) {
-                    UnitSystem.METRIC -> Weight.kilograms(value)
-                    UnitSystem.IMPERIAL -> Weight.pounds(value)
-                }
+            parseWeightInput(newValue, unitSystem.value)?.let { value ->
+                Weight.auto(value, unitSystem.value)
             }
         }
     }

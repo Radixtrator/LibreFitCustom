@@ -123,6 +123,8 @@ import org.librefit.ui.models.UiSet
 import org.librefit.ui.models.UiWorkout
 import org.librefit.ui.models.UiWorkoutWithExercisesAndSets
 import org.librefit.ui.models.autoUnitSuffix
+import org.librefit.ui.models.doubleValueAsString
+import org.librefit.ui.models.weightDecimalCount
 import org.librefit.ui.theme.LibreFitTheme
 import org.librefit.util.Formatter
 import org.librefit.util.Formatter.formatDetails
@@ -548,7 +550,8 @@ private fun SharedTransitionScope.HistoryPage(
                     BodyweightChart.MOST_REPS, BodyweightChart.SESSION_REPS, LoadChart.TOTAL_REPS,
                     WeightedBodyweightChart.TOTAL_REPS -> 2
                     TimeChart.BEST_TIME, TimeChart.TOTAL_TIME -> 0
-                    else -> 1
+                    // Pounds are shown as whole numbers
+                    else -> weightDecimalCount(1)
                 },
                 suffix = when (exerciseChart) {
                     BodyweightChart.MOST_REPS, BodyweightChart.SESSION_REPS, LoadChart.TOTAL_REPS,
@@ -752,7 +755,10 @@ private fun SharedTransitionScope.HistoryPage(
                                                 } else {
                                                     Text(text="${set.reps}", color=contentColor)
                                                     if (setMode == SetMode.LOAD || setMode == SetMode.BODYWEIGHT_WITH_LOAD) {
-                                                        Text(text = "${set.load}", color = contentColor)
+                                                        Text(
+                                                            text = set.load.doubleValueAsString(),
+                                                            color = contentColor
+                                                        )
                                                     }
                                                 }
                                                 Checkbox(

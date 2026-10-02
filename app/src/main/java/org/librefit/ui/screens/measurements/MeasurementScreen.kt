@@ -40,6 +40,7 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.rememberDatePickerState
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableLongStateOf
 import androidx.compose.runtime.mutableStateOf
@@ -84,12 +85,14 @@ import org.librefit.ui.components.dialogs.ConfirmDialog
 import org.librefit.ui.components.modalBottomSheets.InputModalBottomSheet
 import org.librefit.ui.models.InputModalBottomSheetState
 import org.librefit.ui.models.autoUnitSuffix
-import org.librefit.ui.models.doubleValue
 import org.librefit.ui.models.formatToText
+import org.librefit.ui.models.isRepresentedBy
+import org.librefit.ui.models.normalizeWeightInput
+import org.librefit.ui.models.toInputText
+import org.librefit.ui.models.weightKeyboardType
 import org.librefit.ui.theme.LibreFitTheme
 import org.librefit.util.Formatter
 import org.librefit.util.Formatter.formatDetails
-import org.librefit.util.Formatter.getDecimalDigitsAsInteger
 import java.time.Instant
 import java.time.LocalDateTime
 import java.time.ZoneId
@@ -224,11 +227,9 @@ fun MeasurementScreen(
         updateMeasurementCardState = viewModel::updateMeasurementCardState,
         navigateBack = navigateBack,
         onInputModalBottomSheetRequest = {
-            val value = bodyWeight?.doubleValue(unitSystem) ?: 0.0
-
-            infoModalBottomSheetState = InputModalBottomSheetState.Weight.create(
-                integerWeight = value.toInt(),
-                decimalWeight = value.getDecimalDigitsAsInteger()
+            infoModalBottomSheetState = InputModalBottomSheetState.Weight.fromWeight(
+                weight = bodyWeight ?: Weight.zero(),
+                unitSystem = unitSystem
             )
         }
     )
@@ -268,8 +269,20 @@ private fun MeasurementScreenContent(
     val lazyListState = rememberLazyListState()
     val coroutineScope = rememberCoroutineScope()
 
-    var bodyweightValue by remember(bodyWeight) {
-        mutableStateOf(bodyWeight?.doubleValue(unitSystem)?.toString() ?: "")
+    var bodyweightValue by rememberSaveable {
+        mutableStateOf(bodyWeight?.toInputText(unitSystem) ?: "")
+    }
+
+    // Typing writes the parsed body weight back straight away, so the text is replaced only when
+    // the body weight was changed from somewhere else (a measurement to edit, the scroll wheel, a
+    // change of unit system). Rebuilding it on every change would overwrite what is being typed:
+    // "1" used to turn into "1.0" at once, sending the next digit after the separator, and 150 lb
+    // into "149.99". An empty or unparsable text leaves no body weight at all, which is the
+    // user's own doing as well
+    LaunchedEffect(bodyWeight, unitSystem) {
+        if (bodyWeight != null && !bodyWeight.isRepresentedBy(bodyweightValue, unitSystem)) {
+            bodyweightValue = bodyWeight.toInputText(unitSystem)
+        }
     }
 
     LibreFitScaffold(
@@ -345,11 +358,12 @@ private fun MeasurementScreenContent(
                                     isError = bodyweightValue.isBlank(),
                                     singleLine = true,
                                     keyboardOptions = KeyboardOptions(
-                                        keyboardType = KeyboardType.Decimal,
+                                        // Pounds are whole numbers, so there is no separator
+                                        keyboardType = weightKeyboardType(unitSystem),
                                         showKeyboardOnFocus = true
                                     ),
                                     onValueChange = {
-                                        bodyweightValue = Formatter.normalizeNumericString(it)
+                                        bodyweightValue = normalizeWeightInput(it, unitSystem)
                                         updateBodyweight(bodyweightValue)
                                     },
                                 )

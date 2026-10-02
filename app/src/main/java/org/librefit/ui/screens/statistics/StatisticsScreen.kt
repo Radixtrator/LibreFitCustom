@@ -32,6 +32,7 @@ import org.librefit.ui.components.LibreFitScaffold
 import org.librefit.ui.components.charts.LibreFitCartesianChart
 import org.librefit.ui.components.charts.Point
 import org.librefit.ui.models.autoUnitSuffix
+import org.librefit.ui.models.weightDecimalCount
 import org.librefit.ui.theme.LibreFitTheme
 import org.librefit.util.Formatter
 import kotlin.random.Random
@@ -94,7 +95,9 @@ private fun StatisticsScreenContent(
                 LibreFitCartesianChart(
                     decimalCount = when (exercisesDistributionStatisticsChart) {
                         StatisticsChart.DURATION -> 0
-                        else -> 2
+                        StatisticsChart.REPS -> 2
+                        // Pounds are shown as whole numbers
+                        StatisticsChart.LOAD, StatisticsChart.VOLUME -> weightDecimalCount(2)
                     },
                     suffix = when (exercisesDistributionStatisticsChart) {
                         StatisticsChart.LOAD -> autoUnitSuffix()
@@ -125,7 +128,9 @@ private fun StatisticsScreenContent(
                 LibreFitCartesianChart(
                     decimalCount = when (exercisesDistributionStatisticsChart) {
                         StatisticsChart.DURATION -> 0
-                        else -> 2
+                        StatisticsChart.REPS -> 2
+                        // Pounds are shown as whole numbers
+                        StatisticsChart.LOAD, StatisticsChart.VOLUME -> weightDecimalCount(2)
                     },
                     suffix = when (exercisesDistributionStatisticsChart) {
                         StatisticsChart.LOAD -> autoUnitSuffix()

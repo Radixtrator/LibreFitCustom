@@ -71,7 +71,9 @@ class EditWorkoutScreenViewModelTest {
     fun `weight step helper increments by two and a half pounds in imperial`() {
         val stepped = Weight.auto(10.0, UnitSystem.IMPERIAL).stepBy(2.5, UnitSystem.IMPERIAL)
 
-        assertThat(stepped.doubleValue(UnitSystem.IMPERIAL)).isWithin(0.001).of(12.5)
+        // Pounds are shown as whole numbers, so the half pound only shows with explicit decimals
+        assertThat(stepped.doubleValue(UnitSystem.IMPERIAL, numberOfDecimalDigits = 2))
+            .isWithin(0.001).of(12.5)
     }
 
     @Test

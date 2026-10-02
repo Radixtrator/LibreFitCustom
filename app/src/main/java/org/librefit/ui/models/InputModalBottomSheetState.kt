@@ -9,10 +9,14 @@
 package org.librefit.ui.models
 
 import kotlinx.collections.immutable.ImmutableList
+import kotlinx.collections.immutable.persistentListOf
 import kotlinx.collections.immutable.toImmutableList
+import org.librefit.enums.userPreferences.UnitSystem
 import java.lang.Math.toIntExact
 import kotlin.math.abs
+import kotlin.math.floor
 import kotlin.math.pow
+import kotlin.math.roundToInt
 import kotlin.time.Duration
 import kotlin.time.Duration.Companion.hours
 import kotlin.time.Duration.Companion.minutes
@@ -119,6 +123,40 @@ sealed class InputModalBottomSheetState {
                     decimalWeightRange = decimalWeightRange
                 )
             }
+
+            /**
+             * Factory method to create the state picking [weight] in [unitSystem]. The wheels open
+             * on the value shown everywhere else, i.e. [org.librefit.models.Weight.roundedValue],
+             * so 150 lb opens on 150 rather than on 149.99.
+             *
+             * Pounds are whole numbers (refer to [org.librefit.models.Weight.decimalDigits]), so
+             * in [UnitSystem.IMPERIAL] the decimal wheel only holds zero and
+             * [org.librefit.ui.components.modalBottomSheets.InputModalBottomSheet] hides it, refer
+             * to [hasDecimalPart]. In [UnitSystem.METRIC], the wheels are the ones of [create].
+             *
+             * Use [toWeight] to turn the picked value back into a [org.librefit.models.Weight].
+             */
+            fun fromWeight(weight: org.librefit.models.Weight, unitSystem: UnitSystem): Weight {
+                val numberOfDecimalDigits = org.librefit.models.Weight.decimalDigits(unitSystem)
+                val value = weight.roundedValue(unitSystem, numberOfDecimalDigits)
+                val integerPart = floor(value)
+
+                return if (numberOfDecimalDigits == 0) {
+                    create(
+                        integerWeight = integerPart.toInt(),
+                        decimalWeight = 0,
+                        decimalWeightRange = persistentListOf(0)
+                    )
+                } else {
+                    create(
+                        integerWeight = integerPart.toInt(),
+                        // The value is already rounded, so this is a whole number give or take
+                        // the floating point noise
+                        decimalWeight = ((value - integerPart) * 10.0.pow(numberOfDecimalDigits))
+                            .roundToInt()
+                    )
+                }
+            }
         }
 
         init {
@@ -135,6 +173,19 @@ sealed class InputModalBottomSheetState {
 
         /** Convenience property returning the total weight as a combined floating-point value. */
         val totalWeight: Double get() = integerWeight + (decimalWeight / divisor)
+
+        /**
+         * Whether there is a decimal part to pick at all. It is not the case for weights in pounds,
+         * which are whole numbers, refer to [fromWeight].
+         */
+        val hasDecimalPart: Boolean get() = decimalWeightRange.size > 1
+
+        /**
+         * Returns the picked value as a [org.librefit.models.Weight], [totalWeight] being
+         * expressed in the unit of [unitSystem].
+         */
+        fun toWeight(unitSystem: UnitSystem): org.librefit.models.Weight =
+            org.librefit.models.Weight.auto(totalWeight, unitSystem)
     }
 
     /**
