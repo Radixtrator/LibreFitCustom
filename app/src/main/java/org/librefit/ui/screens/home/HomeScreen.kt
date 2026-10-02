@@ -471,7 +471,6 @@ private fun SharedTransitionScope.HomeScreenContent(
                 LibreFitButton(
                     text = stringResource(R.string.start_empty_workout),
                     icon = painterResource(R.drawable.ic_play_arrow),
-                    elevated = false,
                     onClick = { navigateToRoutine(0) }
                 )
             }
