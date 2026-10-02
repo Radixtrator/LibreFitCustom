@@ -37,7 +37,6 @@ import androidx.compose.material3.ElevatedCard
 import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
-import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ShortNavigationBar
 import androidx.compose.material3.ShortNavigationBarItem
@@ -78,6 +77,7 @@ import org.koin.androidx.compose.koinViewModel
 import org.librefit.R
 import org.librefit.enums.pages.MainScreenPages
 import org.librefit.enums.userPreferences.ThemeMode
+import org.librefit.models.RoutineFile
 import org.librefit.ui.components.GetAppNameInAnnotatedBuilder
 import org.librefit.ui.components.HeadlineText
 import org.librefit.ui.components.LibreFitButton
@@ -144,14 +144,8 @@ fun SharedTransitionScope.HomeScreen(
     // destination to write it to
     val routineIdToExport = rememberSaveable { mutableStateOf<Long?>(null) }
 
-    val importRoutineLauncher = rememberLauncherForActivityResult(
-        ActivityResultContracts.OpenDocument()
-    ) { uri ->
-        uri?.let { viewModel.importRoutine(context.contentResolver, it) }
-    }
-
     val exportRoutineLauncher = rememberLauncherForActivityResult(
-        ActivityResultContracts.CreateDocument(ROUTINE_FILE_MIME_TYPE)
+        ActivityResultContracts.CreateDocument(RoutineFile.MIME_TYPE)
     ) { uri ->
         val routineId = routineIdToExport.value
         routineIdToExport.value = null
@@ -168,9 +162,6 @@ fun SharedTransitionScope.HomeScreen(
         animatedVisibilityScope = animatedVisibilityScope,
         deleteRunningWorkout = viewModel::deleteRunningWorkout,
         onReorderRoutines = viewModel::reorderRoutines,
-        onImportRoutine = {
-            importRoutineLauncher.launch(arrayOf(ROUTINE_FILE_MIME_TYPE, "*/*"))
-        },
         onExportRoutine = { routineId ->
             routineIdToExport.value = routineId
             exportRoutineLauncher.launch("routine.json")
@@ -197,7 +188,6 @@ private fun SharedTransitionScope.HomeScreenContent(
     animatedVisibilityScope: AnimatedVisibilityScope,
     deleteRunningWorkout: () -> Unit,
     onReorderRoutines: (List<Long>) -> Unit,
-    onImportRoutine: () -> Unit,
     onExportRoutine: (Long) -> Unit,
     navigateToRoutine: (Long) -> Unit
 ) {
@@ -333,18 +323,6 @@ private fun SharedTransitionScope.HomeScreenContent(
 
         item {
             HeadlineText(stringResource(id = R.string.your_routines))
-        }
-
-        // HeadlineText fills the width on its own, so the action gets a row of its own
-        item {
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.Center
-            ) {
-                OutlinedButton(onClick = onImportRoutine) {
-                    Text(text = stringResource(R.string.import_routine))
-                }
-            }
         }
 
         if (orderedRoutines.isEmpty()) {
@@ -552,7 +530,6 @@ fun HomeScreenPreview() {
                             onNavigateToTutorialScreen = {},
                             runningWorkout = runningWorkout.value,
                             onReorderRoutines = { _ -> },
-                            onImportRoutine = {},
                             onExportRoutine = { _ -> },
                             routines = listOf(
                                 UiWorkout(
@@ -578,9 +555,3 @@ fun HomeScreenPreview() {
         }
     }
 }
-
-/**
- * The media type routines are exported as and filtered for on import. The picker also offers every
- * other type, since providers do not always tag a .json file with it.
- */
-private const val ROUTINE_FILE_MIME_TYPE = "application/json"

@@ -18,15 +18,11 @@ import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import kotlinx.serialization.json.Json
-import org.librefit.db.relations.WorkoutWithExercisesAndSets
 import org.librefit.db.repository.UserPreferencesRepository
 import org.librefit.db.repository.WorkoutRepository
-import org.librefit.enums.WorkoutState
 import org.librefit.models.RoutineFile
 import org.librefit.ui.models.mappers.toEntity
 import org.librefit.ui.models.mappers.toUi
-import java.time.LocalDateTime
-import kotlin.random.Random
 
 class HomeScreenViewModel(
     private val userPreferences: UserPreferencesRepository,
@@ -83,36 +79,6 @@ class HomeScreenViewModel(
             contentResolver.openOutputStream(uri)?.bufferedWriter()?.use { writer ->
                 writer.write(json.encodeToString(RoutineFile.serializer(), payload))
             }
-        }
-    }
-
-    fun importRoutine(contentResolver: ContentResolver, uri: Uri) {
-        viewModelScope.launch {
-            val text = contentResolver.openInputStream(uri)?.bufferedReader()?.use { it.readText() }
-                ?: return@launch
-
-            val payload = Json { ignoreUnknownKeys = true }
-                .decodeFromString(RoutineFile.serializer(), text)
-
-            // Being a new routine, it is appended after the existing ones when it is saved, see
-            // WorkoutDao.addWorkoutWithExercisesAndSets
-            val importedWorkout = WorkoutWithExercisesAndSets(
-                workout = payload.workout.copy(
-                    id = 0,
-                    routineId = Random.nextLong(),
-                    state = WorkoutState.ROUTINE,
-                    created = LocalDateTime.now(),
-                    completed = LocalDateTime.now()
-                ),
-                exercisesWithSets = payload.exercisesWithSets.map { exerciseWithSets ->
-                    exerciseWithSets.copy(
-                        exercise = exerciseWithSets.exercise.copy(id = 0, workoutId = 0),
-                        sets = exerciseWithSets.sets.map { set -> set.copy(id = 0, exerciseId = 0) }
-                    )
-                }
-            )
-
-            workoutRepository.addWorkoutWithExercisesAndSets(importedWorkout)
         }
     }
 

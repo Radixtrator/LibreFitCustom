@@ -8,14 +8,19 @@
 
 package org.librefit.ui.screens.editWorkout
 
+import android.content.ContentResolver
+import android.net.Uri
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import kotlinx.collections.immutable.toImmutableList
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
+import kotlinx.serialization.json.Json
 import org.librefit.db.entity.ExerciseDC
 import org.librefit.db.relations.WorkoutWithExercisesAndSets
 import org.librefit.db.repository.UserPreferencesRepository
@@ -24,6 +29,7 @@ import org.librefit.enums.SetMode
 import org.librefit.enums.WorkoutState
 import org.librefit.enums.exercise.Category
 import org.librefit.enums.exercise.Equipment
+import org.librefit.models.RoutineFile
 import org.librefit.models.Weight
 import org.librefit.nav.Route
 import org.librefit.ui.models.UiExercise
@@ -36,6 +42,7 @@ import org.librefit.ui.models.mappers.toUi
 import org.librefit.ui.models.moveExercise
 import org.librefit.ui.models.withAmrap
 import org.librefit.ui.models.withNormalizedExercisePositions
+import java.io.IOException
 import kotlin.random.Random
 
 class EditWorkoutScreenViewModel(
@@ -386,6 +393,56 @@ class EditWorkoutScreenViewModel(
     fun updateNotes(string: String) {
         _workout.update { it.copy(notes = string) }
         syncToRepository()
+    }
+
+    /**
+     * Fills the routine being created with the one exported to [uri], refer to [RoutineFile]. Its
+     * exercises are added after the ones already there, and its title and notes are only taken
+     * where nothing has been typed yet. Nothing is stored until the routine is saved.
+     *
+     * [onFailure] is invoked when [uri] cannot be read as a routine file.
+     */
+    fun importRoutine(contentResolver: ContentResolver, uri: Uri, onFailure: () -> Unit) {
+        viewModelScope.launch {
+            val payload = try {
+                withContext(ioDispatcher) {
+                    val text = contentResolver.openInputStream(uri)
+                        ?.bufferedReader()
+                        ?.use { it.readText() }
+                        ?: throw IOException("Cannot open $uri")
+
+                    Json { ignoreUnknownKeys = true }.decodeFromString(RoutineFile.serializer(), text)
+                }
+            } catch (e: CancellationException) {
+                throw e
+            } catch (_: Exception) {
+                onFailure()
+                return@launch
+            }
+
+            // Fresh ids, as the ones of the file belong to the database the routine was exported
+            // from. The sets are a plan, so nothing is marked as done
+            val importedExercises = payload.exercisesWithSets.map { exerciseWithSets ->
+                val ui = exerciseWithSets.toUi()
+                ui.copy(
+                    exercise = ui.exercise.copy(id = Random.nextLong(), workoutId = 0),
+                    sets = ui.sets.map { set ->
+                        set.copy(id = Random.nextLong(), exerciseId = 0, completed = false, failed = false)
+                    }.toImmutableList()
+                )
+            }
+
+            _workout.update { workout ->
+                workout.copy(
+                    title = workout.title.ifBlank { payload.workout.title },
+                    notes = workout.notes.ifBlank { payload.workout.notes }
+                )
+            }
+            _exercises.update { exercises ->
+                (exercises + importedExercises).withNormalizedExercisePositions()
+            }
+            syncToRepository()
+        }
     }
 
     fun isTitleEmpty(): Boolean {

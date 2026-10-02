@@ -8,7 +8,10 @@
 
 package org.librefit.ui.screens.editWorkout
 
+import android.widget.Toast
 import androidx.activity.compose.BackHandler
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.AnimatedVisibilityScope
 import androidx.compose.animation.ExperimentalSharedTransitionApi
@@ -17,11 +20,13 @@ import androidx.compose.animation.SharedTransitionScope
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -34,12 +39,14 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.tooling.preview.Preview
+import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import kotlinx.collections.immutable.persistentListOf
 import org.koin.androidx.compose.koinViewModel
@@ -50,6 +57,7 @@ import org.librefit.enums.SetMode
 import org.librefit.enums.exercise.Category
 import org.librefit.enums.exercise.Equipment
 import org.librefit.enums.userPreferences.ThemeMode
+import org.librefit.models.RoutineFile
 import org.librefit.models.Weight
 import org.librefit.nav.Route
 import org.librefit.ui.components.ExerciseCard
@@ -99,6 +107,18 @@ fun SharedTransitionScope.EditWorkoutScreen(
         sharedViewModel.getSelectedExercisesList().forEach(viewModel::addExerciseWithSets)
     }
 
+    val context = LocalContext.current
+    val importFailedMessage = stringResource(R.string.routine_import_failed)
+    val importRoutineLauncher = rememberLauncherForActivityResult(
+        ActivityResultContracts.OpenDocument()
+    ) { uri ->
+        uri?.let {
+            viewModel.importRoutine(context.contentResolver, it) {
+                Toast.makeText(context, importFailedMessage, Toast.LENGTH_LONG).show()
+            }
+        }
+    }
+
     val idExerciseToDelete = rememberSaveable { mutableStateOf<Long?>(null) }
 
     idExerciseToDelete.value?.let {
@@ -124,6 +144,8 @@ fun SharedTransitionScope.EditWorkoutScreen(
         onNavigateToSuccessScreen = onNavigateToSuccessScreen,
         animatedVisibilityScope = animatedVisibilityScope,
         typeOfEdit = viewModel.getTypeOfEdit(),
+        // Providers do not always tag a .json file with its type, so every file is offered too
+        onImportRoutine = { importRoutineLauncher.launch(arrayOf(RoutineFile.MIME_TYPE, "*/*")) },
         exercisesWithSets = exercises,
         workout = workout,
         isTitleTooLong = viewModel.isTitleTooLong(),
@@ -168,6 +190,7 @@ private fun SharedTransitionScope.EditWorkoutScreenContent(
     onNavigateToSuccessScreen: () -> Unit,
     animatedVisibilityScope: AnimatedVisibilityScope,
     typeOfEdit: Boolean?,
+    onImportRoutine: () -> Unit,
     exercisesWithSets: List<UiExerciseWithSets>,
     workout: UiWorkout,
     isTitleTooLong: Boolean,
@@ -349,6 +372,15 @@ private fun SharedTransitionScope.EditWorkoutScreenContent(
                             color = MaterialTheme.colorScheme.onBackground,
                             textAlign = TextAlign.Center
                         )
+                        // A new routine can also start from one exported earlier
+                        if (typeOfEdit == null) {
+                            OutlinedButton(
+                                modifier = Modifier.padding(top = 10.dp),
+                                onClick = onImportRoutine
+                            ) {
+                                Text(text = stringResource(R.string.import_routine))
+                            }
+                        }
                     }
                 }
             } else {
@@ -432,6 +464,7 @@ private fun EditWorkoutScreenPreview() {
                     onNavigateToSuccessScreen = {},
                     animatedVisibilityScope = this,
                     typeOfEdit = typeOfEdit,
+                    onImportRoutine = {},
                     exercisesWithSets = persistentListOf(
                         UiExerciseWithSets(
                             exercise = UiExercise(setMode = SetMode.DURATION, restTime = 0),

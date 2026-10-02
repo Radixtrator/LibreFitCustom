@@ -17,4 +17,9 @@ data class RoutineFile(
     val version: Int = 1,
     val workout: Workout = Workout(),
     val exercisesWithSets: List<ExerciseWithSets> = emptyList()
-)
+) {
+    companion object {
+        /** The type routine files are exported with and picked by when they are imported */
+        const val MIME_TYPE = "application/json"
+    }
+}
