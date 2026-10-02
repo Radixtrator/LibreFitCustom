@@ -50,6 +50,7 @@ import org.librefit.ui.models.UiWorkoutWithExercisesAndSets
 import org.librefit.ui.models.mappers.toEntity
 import org.librefit.ui.models.mappers.toUi
 import org.librefit.ui.models.moveExercise
+import org.librefit.ui.models.restTimeAfterCompleting
 import org.librefit.ui.models.withAmrap
 import org.librefit.ui.models.withNormalizedExercisePositions
 import org.librefit.util.WeightProgression
@@ -418,9 +419,11 @@ class WorkoutScreenViewModel(
                 } else exercise
             }
         }
-        val exerciseWithSets = exercises.value.find { e -> e.sets.any { it.id == id } }!!
-        if (completed && exerciseWithSets.exercise.restTime != 0) {
-            startRestTimer(exerciseWithSets.exercise.restTime)
+        // Within a superset, the rest only comes once its round is done, refer to
+        // restTimeAfterCompleting
+        val restTime = if (completed) exercises.value.restTimeAfterCompleting(id) else 0
+        if (restTime != 0) {
+            startRestTimer(restTime)
         }
         syncToRepository()
     }
