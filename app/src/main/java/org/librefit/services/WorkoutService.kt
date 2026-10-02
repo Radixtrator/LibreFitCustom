@@ -108,14 +108,18 @@ class WorkoutService : Service() {
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
         val action = WorkoutServiceActions.entries.find { it.string == intent?.action }
             ?: WorkoutServiceActions.START_STOPWATCH
+
+        // Every command but the stop one arrives through startForegroundService, and Android kills
+        // the app when such a start is not followed by startForeground, whatever the command is
+        if (action != WorkoutServiceActions.STOP_SERVICE) {
+            startForeground(
+                NotificationHelper.WORKOUT_NOTIFICATION_ID,
+                notificationHelper.createWorkoutNotification()
+            )
+        }
+
         when (action) {
-            WorkoutServiceActions.START_STOPWATCH -> {
-                startStopwatch()
-                startForeground(
-                    NotificationHelper.WORKOUT_NOTIFICATION_ID,
-                    notificationHelper.createWorkoutNotification()
-                )
-            }
+            WorkoutServiceActions.START_STOPWATCH -> startStopwatch()
 
             WorkoutServiceActions.PAUSE_STOPWATCH -> pauseStopwatch()
             WorkoutServiceActions.START_REST_TIMER -> {
@@ -138,6 +142,14 @@ class WorkoutService : Service() {
 
             WorkoutServiceActions.WORKOUT_FOCUS -> {
                 isFocused = intent?.getBooleanExtra(EXTRA_IS_FOCUSED, true) != false
+
+                // The workout screen reports its focus even when it closes after the workout has
+                // ended, which starts the service again with no workout to show. It goes away
+                // straight after, unless another command has reached it in the meantime
+                if (stopwatchJob == null) {
+                    stopForeground(STOP_FOREGROUND_REMOVE)
+                    stopSelf(startId)
+                }
             }
 
             WorkoutServiceActions.STOP_SERVICE -> stopService()
