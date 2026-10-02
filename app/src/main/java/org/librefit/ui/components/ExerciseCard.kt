@@ -31,6 +31,8 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.wrapContentWidth
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.CornerBasedShape
 import androidx.compose.foundation.shape.CornerSize
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardActions
@@ -66,6 +68,7 @@ import androidx.compose.material3.TextButton
 import androidx.compose.material3.TriStateCheckbox
 import androidx.compose.material3.rememberSwipeToDismissBoxState
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.Immutable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.key
@@ -78,12 +81,17 @@ import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.draw.rotate
 import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.ColorFilter
+import androidx.compose.ui.graphics.lerp
+import androidx.compose.ui.graphics.luminance
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalFocusManager
@@ -101,6 +109,8 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.tooling.preview.Wallpapers
+import androidx.compose.ui.unit.Dp
+import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.ui.unit.dp
 import coil3.compose.AsyncImage
 import kotlinx.collections.immutable.persistentListOf
@@ -123,12 +133,17 @@ import org.librefit.ui.models.UiExerciseDC
 import org.librefit.ui.models.UiExerciseWithSets
 import org.librefit.ui.models.UiSet
 import org.librefit.ui.models.autoUnitSuffix
-import org.librefit.ui.models.doubleValue
 import org.librefit.ui.models.formatToText
+import org.librefit.ui.models.isRepresentedBy
+import org.librefit.ui.models.normalizeWeightInput
+import org.librefit.ui.models.parseWeightInput
+import org.librefit.ui.models.toInputText
+import org.librefit.ui.models.weightKeyboardType
 import org.librefit.ui.models.withAmrap
 import org.librefit.ui.theme.LibreFitTheme
+import org.librefit.ui.theme.supersetBlue
+import org.librefit.ui.theme.supersetBlueAlternate
 import org.librefit.util.Formatter
-import org.librefit.util.Formatter.getDecimalDigitsAsInteger
 import org.librefit.util.textFieldTransformations.TimeInputTransformation
 import org.librefit.util.textFieldTransformations.TimeOutputTransformation
 import kotlin.math.roundToInt
@@ -137,6 +152,14 @@ import kotlin.time.Duration.Companion.seconds
 /**
  * A custom [ElevatedCard] designed to display an [UiExerciseWithSets] with a uniform appearance across
  * the app.
+ *
+ * Every card can be folded down to its header with the arrow next to its menu, or by tapping the
+ * header of a folded card, leaving only a one-line summary of its sets. The fold outlives the card
+ * scrolling out of the list and configuration changes.
+ *
+ * When the exercise belongs to a superset, i.e. it has a [UiExercise.supersetGroupId], the card is
+ * tinted blue, labeled as such and marked with a stripe along its start edge, which links it to the
+ * neighbouring cards of the same superset. Refer to [supersetLink].
  *
  * @param modifier A [Modifier] that should be passed as `Modifier.animateItem` to enable
  * animation for the card within the list.
@@ -151,7 +174,16 @@ import kotlin.time.Duration.Companion.seconds
  * @param onDelete A lambda function executed when the *Delete* icon is clicked, it should result in
  * the removal of the card.
  * @param isCollapsed When `true`, the card collapses its editable body to provide clearer reorder feedback. So it's true only when reordering one of exercises in the list.
+ * It hides the body whatever the fold chosen by the user, without changing it, and swaps the fold
+ * arrow and the menu for a drag handle.
  * @param dragHandleModifier Modifier applied to the optional drag handle.
+ * @param supersetLink Where the card stands within its superset, as computed by [supersetLinks]
+ * over the whole list. It picks the shade of blue of the superset and links the card to the
+ * neighbouring ones of the same superset, so they read as a single block. When `null`, an exercise
+ * with a [UiExercise.supersetGroupId] is still painted as part of a superset, just on its own.
+ * @param listSpacing The spacing between the items of the list holding the card, which is the gap
+ * the stripe linking it to the previous card of the same superset spans. It defaults to the one of
+ * [LibreFitLazyColumn].
  * @param onReorderRequest A lambda triggered when the `reorder` option from dropdown menu is pressed.
  * @param isDragging when `true`, it applies a shadow to further emphasize with a shadow that the card is dragged.
  * @param useScrollWheelForInput If `true`, [InputModalBottomSheet] appears instead of keyboard
@@ -204,7 +236,13 @@ import kotlin.time.Duration.Companion.seconds
  * This parameter is only used when [workout] is `true`.
  * @param workout A Boolean flag indicating whether a checkbox should be displayed next to each set.
  * When `true`, swiping a set marks it as done or as missed reps instead of removing it, and the
- * card folds itself away once every set is completed.
+ * card folds itself away once every set is completed, unfolding again when one of them is undone.
+ * Unless [editMode] says otherwise, it also leaves out the notes, the rest time and the weight
+ * increase of the exercise, which are settings of the routine rather than something to fill in
+ * while training.
+ * @param editMode When `true`, the card shows the notes, the rest time and the weight increase of
+ * the exercise, so they can be changed. It defaults to the opposite of [workout], but the editing of
+ * a past workout shows them next to the checkboxes of its sets.
  * @param applyPreviousSetPerformance Triggered when the user clicks the previous set performance
  * (on the left to the set counter) * and should update the current set with the values of the previous set.
  */
@@ -219,12 +257,15 @@ fun SharedTransitionScope.ExerciseCard(
     exerciseWithSets: UiExerciseWithSets,
     previousPerformances: List<PreviousPerformanceSet>? = null,
     workout: Boolean = false,
+    editMode: Boolean = !workout,
     idSetWithRunningStopwatch: Long? = null,
     addSet: (Long) -> Unit,
     onDetail: (Long, String) -> Unit,
     onDelete: (Long) -> Unit,
     isCollapsed: Boolean = false,
     dragHandleModifier: Modifier = Modifier,
+    supersetLink: SupersetLink? = null,
+    listSpacing: Dp = 15.dp,
     isDragging: Boolean,
     useScrollWheelForInput: Boolean,
     dismissScrollWheelInputAutomatically: Boolean,
@@ -252,34 +293,78 @@ fun SharedTransitionScope.ExerciseCard(
     var showMenu by rememberSaveable { mutableStateOf(false) }
 
     // A finished exercise has nothing left to fill in, so it folds away to keep the rest of the
-    // workout in reach. Outside a workout no set is ever completed, so nothing folds there
+    // workout in reach. Outside a workout no set is ever completed, so nothing folds there on its own
     val isExerciseDone = workout && exerciseWithSets.sets.isNotEmpty() &&
             exerciseWithSets.sets.all { it.completed }
-    var isDoneExerciseExpanded by rememberSaveable { mutableStateOf(false) }
-    // Undoing a set brings the card back on its own, and finishing the exercise again folds it away
-    // anew rather than leaving it open because it was unfolded by hand once
+    // Any card can be folded by hand with the arrow in its header. Being saved, the fold outlives
+    // the card scrolling out of the list
+    var savedFold by rememberSaveable { mutableStateOf(isExerciseDone) }
+    var wasExerciseDone by rememberSaveable { mutableStateOf(isExerciseDone) }
+    // Finishing the exercise folds it away and undoing one of its sets brings it back, whatever the
+    // arrow was left at. Until the effect below catches up with such a change, the card already
+    // follows it, so it does not flash open for a frame
+    val isFolded = if (wasExerciseDone == isExerciseDone) savedFold else isExerciseDone
     LaunchedEffect(isExerciseDone) {
-        if (!isExerciseDone) isDoneExerciseExpanded = false
+        if (wasExerciseDone != isExerciseDone) {
+            wasExerciseDone = isExerciseDone
+            savedFold = isExerciseDone
+        }
     }
-    val isBodyHidden = isCollapsed || (isExerciseDone && !isDoneExerciseExpanded)
+    val isBodyHidden = isCollapsed || isFolded
     val foldArrowRotation by animateFloatAsState(
-        targetValue = if (isBodyHidden) 0f else 180f,
+        targetValue = if (isFolded) 0f else 180f,
         label = "animated_rotation_for_fold_arrow"
     )
 
-    val shape = MaterialTheme.shapes.extraLarge
+    // The exercises of a superset are performed back to back, so their cards are painted as a
+    // single block. The links are left out while reordering, since the cards are on the move
+    val isSuperset = exerciseWithSets.exercise.supersetGroupId != null
+    val superset = supersetColors(groupIndex = supersetLink?.groupIndex ?: 0)
+    val isLinkedToPrevious = isSuperset && !isCollapsed && supersetLink?.isLinkedToPrevious == true
+    val isLinkedToNext = isSuperset && !isCollapsed && supersetLink?.isLinkedToNext == true
+    val containerColor by animateColorAsState(
+        targetValue = if (isSuperset) {
+            superset.container
+        } else {
+            MaterialTheme.colorScheme.surfaceContainerLow
+        },
+        label = "animated_color_for_card_container"
+    )
+    val stripeColor by animateColorAsState(
+        targetValue = if (isSuperset) superset.accent else superset.accent.copy(alpha = 0f),
+        label = "animated_color_for_superset_stripe"
+    )
+
+    val cardShape = MaterialTheme.shapes.extraLarge
+    val shape = remember(cardShape, isLinkedToPrevious, isLinkedToNext) {
+        cardShape.linkedToNeighbours(
+            toPrevious = isLinkedToPrevious,
+            toNext = isLinkedToNext
+        )
+    }
     ElevatedCard(
-        modifier = modifier.then(
-            if (isDragging) Modifier.shadow(
-                10.dp,
-                shape = shape
-            ) else Modifier
-        ),
-        shape = shape
+        modifier = modifier
+            .then(
+                if (isDragging) Modifier.shadow(
+                    10.dp,
+                    shape = shape
+                ) else Modifier
+            )
+            .then(
+                if (isLinkedToPrevious) {
+                    Modifier.supersetLinkToPrevious(color = stripeColor, length = listSpacing)
+                } else Modifier
+            ),
+        shape = shape,
+        colors = CardDefaults.elevatedCardColors(
+            containerColor = containerColor,
+            contentColor = MaterialTheme.colorScheme.onSurface
+        )
     ) {
         Column(
             modifier = Modifier
                 .fillMaxWidth()
+                .supersetStripe(color = stripeColor)
                 .padding(15.dp),
             horizontalAlignment = Alignment.CenterHorizontally,
             verticalArrangement = Arrangement.spacedBy(10.dp)
@@ -293,8 +378,17 @@ fun SharedTransitionScope.ExerciseCard(
                     modifier = Modifier
                         .weight(1f)
                         .clip(MaterialTheme.shapes.medium)
-                        .clickable(enabled = !isBodyHidden) {
-                            onDetail(exerciseWithSets.exercise.id, exerciseWithSets.exerciseDC.id)
+                        // A folded card opens up when its header is tapped, while an open one
+                        // leads to the details of the exercise
+                        .clickable(
+                            enabled = !isCollapsed,
+                            onClickLabel = if (isFolded) stringResource(R.string.show) else null
+                        ) {
+                            if (isFolded) {
+                                savedFold = false
+                            } else {
+                                onDetail(exerciseWithSets.exercise.id, exerciseWithSets.exerciseDC.id)
+                            }
                         },
                     verticalAlignment = Alignment.CenterVertically
                 ) {
@@ -319,23 +413,51 @@ fun SharedTransitionScope.ExerciseCard(
                                 .clip(MaterialTheme.shapes.medium)
                         )
                     }
-                    Text(
-                        text = exerciseWithSets.exerciseDC.name,
-                        style = MaterialTheme.typography.headlineSmall,
-                        fontWeight = FontWeight.SemiBold,
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis,
-                        modifier = Modifier.weight(1f)
-                    )
+                    Column(modifier = Modifier.weight(1f)) {
+                        Text(
+                            text = exerciseWithSets.exerciseDC.name,
+                            style = MaterialTheme.typography.headlineSmall,
+                            fontWeight = FontWeight.SemiBold,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis
+                        )
+                        // A folded card still tells how far the exercise is
+                        val summary = if (workout) {
+                            stringResource(R.string.completed_sets) + ": " +
+                                    exerciseWithSets.sets.count { it.completed } + "/" +
+                                    exerciseWithSets.sets.size
+                        } else {
+                            stringResource(R.string.sets_summary, exerciseWithSets.sets.size)
+                        }
+                        if (isSuperset) {
+                            Row(
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.spacedBy(8.dp)
+                            ) {
+                                SupersetLabel(colors = superset)
+                                AnimatedVisibility(
+                                    visible = isBodyHidden,
+                                    modifier = Modifier.weight(1f, fill = false)
+                                ) {
+                                    FoldedExerciseSummary(text = summary)
+                                }
+                            }
+                        } else {
+                            AnimatedVisibility(visible = isBodyHidden) {
+                                FoldedExerciseSummary(text = summary)
+                            }
+                        }
+                    }
                 }
-                AnimatedVisibility(visible = isExerciseDone && !isCollapsed) {
+                // Reordering folds every card anyway, so the arrow makes room for the drag handle
+                AnimatedVisibility(visible = !isCollapsed) {
                     IconButton(
-                        onClick = { isDoneExerciseExpanded = !isDoneExerciseExpanded }
+                        onClick = { savedFold = !isFolded }
                     ) {
                         Icon(
                             painter = painterResource(R.drawable.ic_drop_down),
                             contentDescription = stringResource(
-                                if (isBodyHidden) R.string.show else R.string.hide
+                                if (isFolded) R.string.show else R.string.hide
                             ),
                             modifier = Modifier.rotate(foldArrowRotation)
                         )
@@ -435,76 +557,80 @@ fun SharedTransitionScope.ExerciseCard(
                     horizontalAlignment = Alignment.CenterHorizontally,
                     verticalArrangement = Arrangement.spacedBy(10.dp)
                 ) {
-                    OutlinedTextField(
-                        shape = MaterialTheme.shapes.large,
-                        modifier = Modifier.fillMaxWidth(),
-                        label = { Text(text = stringResource(id = R.string.notes)) },
-                        value = exerciseWithSets.exercise.notes,
-                        onValueChange = { updateExerciseNotes(it, exerciseWithSets.exercise.id) }
-                    )
-
-                    //Rest timer slider
-                    Column {
-                        var showSlider by rememberSaveable { mutableStateOf(false) }
-                        var restTime by remember { mutableIntStateOf(exerciseWithSets.exercise.restTime) }
-                        val haptic = LocalHapticFeedback.current
-                        Row(
+                    // The settings of the exercise belong to the routine, so they are left out while
+                    // training rather than crowding the sets to fill in
+                    if (editMode) {
+                        OutlinedTextField(
+                            shape = MaterialTheme.shapes.large,
                             modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.SpaceAround,
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
+                            label = { Text(text = stringResource(id = R.string.notes)) },
+                            value = exerciseWithSets.exercise.notes,
+                            onValueChange = { updateExerciseNotes(it, exerciseWithSets.exercise.id) }
+                        )
+
+                        //Rest timer slider
+                        Column {
+                            var showSlider by rememberSaveable { mutableStateOf(false) }
+                            var restTime by remember { mutableIntStateOf(exerciseWithSets.exercise.restTime) }
+                            val haptic = LocalHapticFeedback.current
                             Row(
-                                horizontalArrangement = Arrangement.Center,
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.SpaceAround,
                                 verticalAlignment = Alignment.CenterVertically
                             ) {
-                                IconButton(
-                                    // Read more at InfoModalBottomSheet
-                                    onClick = { showInfo(InfoMode.REST_TIMER) }
+                                Row(
+                                    horizontalArrangement = Arrangement.Center,
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    IconButton(
+                                        // Read more at InfoModalBottomSheet
+                                        onClick = { showInfo(InfoMode.REST_TIMER) }
+                                    ) {
+                                        Icon(
+                                            painter = painterResource(R.drawable.ic_info),
+                                            contentDescription = stringResource(R.string.info)
+                                        )
+                                    }
+                                    Text(
+                                        stringResource(R.string.rest_time) + ": " + restTime
+                                                + " " + stringResource(R.string.seconds).replaceFirstChar { it.lowercase() })
+                                }
+                                IconToggleButton(
+                                    checked = showSlider,
+                                    onCheckedChange = {
+                                        showSlider = it
+                                        haptic.performHapticFeedback(if (it) HapticFeedbackType.ToggleOn else HapticFeedbackType.ToggleOff)
+                                    }
                                 ) {
                                     Icon(
-                                        painter = painterResource(R.drawable.ic_info),
-                                        contentDescription = stringResource(R.string.info)
+                                        painter = painterResource(if (showSlider) R.drawable.ic_check else R.drawable.ic_edit),
+                                        contentDescription = stringResource(if (showSlider) R.string.save else R.string.edit)
                                     )
                                 }
-                                Text(
-                                    stringResource(R.string.rest_time) + ": " + restTime
-                                            + " " + stringResource(R.string.seconds).replaceFirstChar { it.lowercase() })
                             }
-                            IconToggleButton(
-                                checked = showSlider,
-                                onCheckedChange = {
-                                    showSlider = it
-                                    haptic.performHapticFeedback(if (it) HapticFeedbackType.ToggleOn else HapticFeedbackType.ToggleOff)
-                                }
-                            ) {
-                                Icon(
-                                    painter = painterResource(if (showSlider) R.drawable.ic_check else R.drawable.ic_edit),
-                                    contentDescription = stringResource(if (showSlider) R.string.save else R.string.edit)
+                            AnimatedVisibility(visible = showSlider) {
+                                Slider(
+                                    value = restTime.toFloat(),
+                                    onValueChange = {
+                                        // By dividing first and then multiplying by 5, it rounds to the closest number multiple of 5
+                                        restTime = (it / 5).roundToInt() * 5
+                                        haptic.performHapticFeedback(HapticFeedbackType.SegmentFrequentTick)
+                                    },
+                                    onValueChangeFinished = {
+                                        updateExerciseRestTime(
+                                            restTime,
+                                            exerciseWithSets.exercise.id
+                                        )
+                                    },
+                                    valueRange = 0f..300f,
+                                    // 19 steps means values multiple of 5
+                                    steps = 19
                                 )
                             }
                         }
-                        AnimatedVisibility(visible = showSlider) {
-                            Slider(
-                                value = restTime.toFloat(),
-                                onValueChange = {
-                                    // By dividing first and then multiplying by 5, it rounds to the closest number multiple of 5
-                                    restTime = (it / 5).roundToInt() * 5
-                                    haptic.performHapticFeedback(HapticFeedbackType.SegmentFrequentTick)
-                                },
-                                onValueChangeFinished = {
-                                    updateExerciseRestTime(
-                                        restTime,
-                                        exerciseWithSets.exercise.id
-                                    )
-                                },
-                                valueRange = 0f..300f,
-                                // 19 steps means values multiple of 5
-                                steps = 19
-                            )
-                        }
-                    }
 
-                    HorizontalDivider()
+                        HorizontalDivider()
+                    }
 
                     // Set mode selection
                     Row(
@@ -594,21 +720,24 @@ fun SharedTransitionScope.ExerciseCard(
                         }
                     }
 
-                    // Progressive overload. It is meaningful only for the set modes carrying a load
-                    AnimatedVisibility(
-                        visible = exerciseWithSets.exercise.setMode == SetMode.LOAD ||
-                                exerciseWithSets.exercise.setMode == SetMode.BODYWEIGHT_WITH_LOAD
-                    ) {
-                        WeightIncrementRow(
-                            weightIncrement = exerciseWithSets.exercise.weightIncrement,
-                            onWeightIncrementChange = { newIncrement ->
-                                updateExerciseWeightIncrement(
-                                    newIncrement,
-                                    exerciseWithSets.exercise.id
-                                )
-                            },
-                            showInfo = showInfo
-                        )
+                    // Progressive overload. It is meaningful only for the set modes carrying a load,
+                    // and like the other settings of the exercise it is only changed while editing
+                    if (editMode) {
+                        AnimatedVisibility(
+                            visible = exerciseWithSets.exercise.setMode == SetMode.LOAD ||
+                                    exerciseWithSets.exercise.setMode == SetMode.BODYWEIGHT_WITH_LOAD
+                        ) {
+                            WeightIncrementRow(
+                                weightIncrement = exerciseWithSets.exercise.weightIncrement,
+                                onWeightIncrementChange = { newIncrement ->
+                                    updateExerciseWeightIncrement(
+                                        newIncrement,
+                                        exerciseWithSets.exercise.id
+                                    )
+                                },
+                                showInfo = showInfo
+                            )
+                        }
                     }
 
                     ElevatedCard(
@@ -704,6 +833,202 @@ fun SharedTransitionScope.ExerciseCard(
 }
 
 /**
+ * The one line taking the place of the body of a folded [ExerciseCard]
+ */
+@Composable
+private fun FoldedExerciseSummary(text: String) {
+    Text(
+        text = text,
+        style = MaterialTheme.typography.bodyMedium,
+        color = MaterialTheme.colorScheme.onSurfaceVariant,
+        maxLines = 1,
+        overflow = TextOverflow.Ellipsis
+    )
+}
+
+/**
+ * Where an exercise stands within its superset, i.e. among the exercises of the list sharing its
+ * [UiExercise.supersetGroupId]. Refer to [supersetLinks] to compute it.
+ *
+ * @param groupIndex The order of the superset among the ones of the list. It alternates the shade
+ * of blue the superset is painted with, so two supersets sitting next to each other are told apart.
+ * @param isLinkedToPrevious `true` when the previous exercise of the list belongs to the same superset
+ * @param isLinkedToNext `true` when the next exercise of the list belongs to the same superset
+ */
+@Immutable
+data class SupersetLink(
+    val groupIndex: Int,
+    val isLinkedToPrevious: Boolean,
+    val isLinkedToNext: Boolean
+)
+
+/**
+ * Returns the [SupersetLink] of every exercise of the list, in the same order, or `null` for the
+ * exercises not belonging to any superset.
+ */
+fun List<UiExerciseWithSets>.supersetLinks(): List<SupersetLink?> {
+    val groupIds = mapNotNull { it.exercise.supersetGroupId }.distinct()
+
+    return mapIndexed { i, exerciseWithSets ->
+        exerciseWithSets.exercise.supersetGroupId?.let { groupId ->
+            SupersetLink(
+                groupIndex = groupIds.indexOf(groupId),
+                isLinkedToPrevious = getOrNull(i - 1)?.exercise?.supersetGroupId == groupId,
+                isLinkedToNext = getOrNull(i + 1)?.exercise?.supersetGroupId == groupId
+            )
+        }
+    }
+}
+
+/**
+ * The colours a card of a superset is painted with, refer to [supersetColors]
+ *
+ * @param container The colour of the card itself
+ * @param accent The colour of the stripe running along the card and linking it to its neighbours
+ * @param label The colour of the text of [SupersetLabel]
+ */
+@Immutable
+internal data class SupersetColors(
+    val container: Color,
+    val accent: Color,
+    val label: Color
+)
+
+/**
+ * Blends [supersetBlue], or [supersetBlueAlternate] for every other superset, into [base], so a
+ * card of a superset is tinted gently whatever the colour scheme, dynamic colours included. On dark
+ * surfaces the blue is lightened, so it keeps standing out.
+ *
+ * @param groupIndex Refer to [SupersetLink.groupIndex]
+ * @param base The colour the card has outside of a superset
+ */
+@Composable
+internal fun supersetColors(
+    groupIndex: Int,
+    base: Color = MaterialTheme.colorScheme.surfaceContainerLow
+): SupersetColors = remember(groupIndex, base) {
+    val blue = if (groupIndex % 2 == 0) supersetBlue else supersetBlueAlternate
+
+    if (base.luminance() < 0.5f) {
+        SupersetColors(
+            container = lerp(base, blue, 0.18f),
+            accent = lerp(blue, Color.White, 0.4f),
+            label = lerp(blue, Color.White, 0.6f)
+        )
+    } else {
+        SupersetColors(
+            container = lerp(base, blue, 0.12f),
+            accent = blue,
+            label = lerp(blue, Color.Black, 0.35f)
+        )
+    }
+}
+
+/**
+ * The badge telling that the exercise of a card is part of a superset
+ */
+@Composable
+internal fun SupersetLabel(
+    colors: SupersetColors,
+    modifier: Modifier = Modifier
+) {
+    Text(
+        text = stringResource(R.string.superset),
+        style = MaterialTheme.typography.labelMedium,
+        fontWeight = FontWeight.SemiBold,
+        color = colors.label,
+        maxLines = 1,
+        modifier = modifier
+            .clip(CircleShape)
+            .background(colors.accent.copy(alpha = 0.2f))
+            .padding(horizontal = 8.dp, vertical = 2.dp)
+    )
+}
+
+/**
+ * The width of the stripe running along the start edge of the cards of a superset
+ */
+internal val SUPERSET_STRIPE_WIDTH = 5.dp
+
+/**
+ * The rounding left to the corners of a card joining another card of the same superset
+ */
+internal val SUPERSET_LINKED_CORNER_SIZE = 8.dp
+
+/**
+ * Returns the receiver with the corners joining another card of the same superset tightened, so
+ * the cards of a superset read as a single block.
+ *
+ * @param toPrevious When `true`, the top corners are tightened
+ * @param toNext When `true`, the bottom corners are tightened
+ */
+internal fun CornerBasedShape.linkedToNeighbours(
+    toPrevious: Boolean,
+    toNext: Boolean
+): CornerBasedShape {
+    if (!toPrevious && !toNext) return this
+
+    val linkedCorner = CornerSize(SUPERSET_LINKED_CORNER_SIZE)
+    return copy(
+        topStart = if (toPrevious) linkedCorner else topStart,
+        topEnd = if (toPrevious) linkedCorner else topEnd,
+        bottomEnd = if (toNext) linkedCorner else bottomEnd,
+        bottomStart = if (toNext) linkedCorner else bottomStart
+    )
+}
+
+/**
+ * Paints the stripe of a superset along the start edge of the receiver, which has to be clipped to
+ * the shape of the card. When the receiver is the padded content of the card, [outsetStart] and
+ * [outsetVertical] reach past the padding up to the edges of the card: anything drawn past them is
+ * clipped away. Nothing is drawn when [color] is fully transparent.
+ */
+internal fun Modifier.supersetStripe(
+    color: Color,
+    outsetStart: Dp = 0.dp,
+    outsetVertical: Dp = 0.dp
+): Modifier = drawBehind {
+    if (color.alpha == 0f) return@drawBehind
+
+    val width = SUPERSET_STRIPE_WIDTH.toPx()
+    val start = outsetStart.toPx()
+    val vertical = outsetVertical.toPx()
+    drawRect(
+        color = color,
+        topLeft = Offset(
+            x = if (layoutDirection == LayoutDirection.Ltr) -start else size.width + start - width,
+            y = -vertical
+        ),
+        size = Size(width = width, height = size.height + 2 * vertical)
+    )
+}
+
+/**
+ * Carries the stripe of a superset across the gap of [length] above the receiver, joining the card
+ * to the previous one of the same superset. It reaches [SUPERSET_LINKED_CORNER_SIZE] into both cards
+ * to fill the notches their tightened corners leave next to the stripes, so it has to be applied
+ * outside of the clip of the card, where it is drawn behind the card itself.
+ */
+internal fun Modifier.supersetLinkToPrevious(
+    color: Color,
+    length: Dp
+): Modifier = drawBehind {
+    if (color.alpha == 0f) return@drawBehind
+
+    val width = SUPERSET_STRIPE_WIDTH.toPx()
+    val gap = length.toPx()
+    val overlap = SUPERSET_LINKED_CORNER_SIZE.toPx()
+    drawRect(
+        color = color,
+        topLeft = Offset(
+            x = if (layoutDirection == LayoutDirection.Ltr) 0f else size.width - width,
+            y = -gap - overlap
+        ),
+        size = Size(width = width, height = gap + 2 * overlap)
+    )
+}
+
+/**
  * The control letting the user configure [UiExercise.weightIncrement], i.e. how much load is added
  * to the suggestion for the next session once every set of the exercise has been completed without
  * being flagged as missed reps. A value of zero disables the progression.
@@ -721,14 +1046,17 @@ private fun WeightIncrementRow(
     val unitSystem = LocalUnitSystem.current
     val unit = autoUnitSuffix()
 
-    // The smallest plate commonly available, so the steppers land on realistic values
-    val step = when (unitSystem) {
-        UnitSystem.METRIC -> 1.25
-        UnitSystem.IMPERIAL -> 2.5
+    // Typing writes the increment back on every keystroke, so the text is kept as it is typed
+    // rather than rebuilt from the stored value, which would turn "1" into "1.0" at once
+    var incrementValue by rememberSaveable {
+        mutableStateOf(weightIncrement.toInputText(unitSystem))
     }
-
-    var incrementValue by rememberSaveable(weightIncrement) {
-        mutableStateOf(weightIncrement.doubleValue(unitSystem).toString())
+    // The text is rebuilt only when the increment was changed from somewhere else, i.e. the
+    // steppers or a change of unit system
+    LaunchedEffect(weightIncrement, unitSystem) {
+        if (!weightIncrement.isRepresentedBy(incrementValue, unitSystem)) {
+            incrementValue = weightIncrement.toInputText(unitSystem)
+        }
     }
 
     Row(
@@ -753,7 +1081,11 @@ private fun WeightIncrementRow(
             IconButton(
                 onClick = {
                     onWeightIncrementChange(
-                        weightIncrement.steppedBy(-step, unitSystem)
+                        weightIncrement.stepIncrement(
+                            up = false,
+                            unitSystem = unitSystem,
+                            maxValueInUnit = MAX_WEIGHT_INCREMENT
+                        )
                     )
                 },
                 modifier = Modifier.size(28.dp)
@@ -765,18 +1097,19 @@ private fun WeightIncrementRow(
                 modifier = Modifier.width(80.dp),
                 value = incrementValue,
                 onValueChange = { string ->
-                    incrementValue = Formatter.normalizeNumericString(string)
+                    // Pounds are whole numbers, so only digits are kept for them
+                    incrementValue = normalizeWeightInput(string, unitSystem)
 
                     onWeightIncrementChange(
                         Weight.auto(
-                            (Formatter.parseDoubleFromString(incrementValue) ?: 0.0)
+                            (parseWeightInput(incrementValue, unitSystem) ?: 0.0)
                                 .coerceIn(0.0, MAX_WEIGHT_INCREMENT),
                             unitSystem
                         )
                     )
                 },
                 singleLine = true,
-                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
+                keyboardOptions = KeyboardOptions(keyboardType = weightKeyboardType(unitSystem)),
                 colors = OutlinedTextFieldDefaults.colors(
                     unfocusedBorderColor = Color.Transparent,
                     focusedBorderColor = Color.Transparent,
@@ -786,7 +1119,11 @@ private fun WeightIncrementRow(
             IconButton(
                 onClick = {
                     onWeightIncrementChange(
-                        weightIncrement.steppedBy(step, unitSystem)
+                        weightIncrement.stepIncrement(
+                            up = true,
+                            unitSystem = unitSystem,
+                            maxValueInUnit = MAX_WEIGHT_INCREMENT
+                        )
                     )
                 },
                 modifier = Modifier.size(28.dp)
@@ -798,20 +1135,13 @@ private fun WeightIncrementRow(
 }
 
 /**
- * The largest increment that can be configured. Anything above it is a typo rather than an
- * intention, and [Weight] would throw for values outside of its own range.
+ * The largest increment that can be configured, expressed in the unit of the current
+ * [UnitSystem]. Anything above it is a typo rather than an intention, and [Weight] would throw for
+ * values outside of its own range. The steppers keep within it as well: they move the increment by
+ * [Weight.Companion.incrementStep] on the grid of the unit, so pounds stay whole numbers, refer to
+ * [Weight.stepIncrement].
  */
 private const val MAX_WEIGHT_INCREMENT = 1000.0
-
-/**
- * Moves the receiver by [delta], expressed in the unit of [unitSystem], keeping the result within
- * the bounds accepted for an increment.
- */
-private fun Weight.steppedBy(delta: Double, unitSystem: UnitSystem): Weight {
-    val stepped = (doubleValue(unitSystem) + delta).coerceIn(0.0, MAX_WEIGHT_INCREMENT)
-
-    return Weight.auto(stepped, unitSystem)
-}
 
 @OptIn(ExperimentalMaterial3ExpressiveApi::class)
 @Composable
@@ -848,10 +1178,19 @@ private fun Set(
             .filter { it != ':' }
     )
     var repValue by rememberSaveable(set.reps) { mutableStateOf(set.reps.toString()) }
-    var weightValue by rememberSaveable(set.load) {
-        mutableStateOf(
-            set.load.doubleValue(unitSystem).toString()
-        )
+    // Keyed on the set only, as the text has to outlive the changes of load it causes itself: what
+    // is typed is kept as it is, an empty field or a trailing separator ("60.") included, instead
+    // of being rebuilt from the stored value, which would turn "1" into "1.0" at once
+    var weightValue by rememberSaveable(set.id) {
+        mutableStateOf(set.load.toInputText(unitSystem))
+    }
+    // Typing writes the load back on every keystroke, so the text is rebuilt only when the load
+    // was changed from somewhere else: the steppers, the previous performance, the scroll wheel or
+    // a change of unit system
+    LaunchedEffect(set.load, unitSystem) {
+        if (!set.load.isRepresentedBy(weightValue, unitSystem)) {
+            weightValue = set.load.toInputText(unitSystem)
+        }
     }
 
     // Sync elapsed time with time text field
@@ -911,10 +1250,7 @@ private fun Set(
                 inputSetId?.let { id ->
                     when (newState) {
                         is InputModalBottomSheetState.Weight -> {
-                            updateSetLoad(
-                                Weight.auto(newState.totalWeight, unitSystem),
-                                id
-                            )
+                            updateSetLoad(newState.toWeight(unitSystem), id)
                         }
 
                         is InputModalBottomSheetState.Reps -> {
@@ -1241,7 +1577,11 @@ private fun Set(
                         if (!useScrollWheelForInput) {
                             IconButton(
                                 onClick = {
-                                    val newLoad = set.load.stepBy(-2.5, unitSystem)
+                                    // 5 lb on whole pounds, or about 1.134 kg as it has always been
+                                    val newLoad = set.load.stepLoad(
+                                        up = false,
+                                        unitSystem = unitSystem
+                                    )
                                     updateSetLoad(newLoad, set.id)
                                 },
                                 modifier = Modifier.size(28.dp)
@@ -1255,11 +1595,12 @@ private fun Set(
                                 modifier = Modifier.width(80.dp),
                                 value = weightValue,
                                 onValueChange = { string ->
-                                    weightValue = Formatter.normalizeNumericString(string)
+                                    // Pounds are whole numbers, so only digits are kept for them
+                                    weightValue = normalizeWeightInput(string, unitSystem)
 
                                     updateSetLoad(
                                         Weight.auto(
-                                            Formatter.parseDoubleFromString(weightValue) ?: 0.0,
+                                            parseWeightInput(weightValue, unitSystem) ?: 0.0,
                                             unitSystem
                                         ),
                                         set.id
@@ -1267,7 +1608,7 @@ private fun Set(
                                 },
                                 singleLine = true,
                                 keyboardOptions = KeyboardOptions(
-                                    keyboardType = KeyboardType.Decimal,
+                                    keyboardType = weightKeyboardType(unitSystem),
                                     imeAction = ImeAction.Done
                                 ),
                                 keyboardActions = KeyboardActions(
@@ -1288,11 +1629,13 @@ private fun Set(
                                         .matchParentSize()
                                         .clip(MaterialTheme.shapes.extraLarge)
                                         .clickable {
-                                            val value = set.load.doubleValue(unitSystem)
+                                            // The wheels open on the load as it is shown, e.g.
+                                            // 150 lb rather than 149.99, and offer no decimal part
+                                            // for pounds, which are whole numbers
                                             inputModalBottomSheetState =
-                                                InputModalBottomSheetState.Weight.create(
-                                                    integerWeight = value.toInt(),
-                                                    decimalWeight = value.getDecimalDigitsAsInteger()
+                                                InputModalBottomSheetState.Weight.fromWeight(
+                                                    weight = set.load,
+                                                    unitSystem = unitSystem
                                                 )
                                             inputSetId = set.id
                                         }
@@ -1302,7 +1645,10 @@ private fun Set(
                         if (!useScrollWheelForInput) {
                             IconButton(
                                 onClick = {
-                                    val newLoad = set.load.stepBy(2.5, unitSystem)
+                                    val newLoad = set.load.stepLoad(
+                                        up = true,
+                                        unitSystem = unitSystem
+                                    )
                                     updateSetLoad(newLoad, set.id)
                                 },
                                 modifier = Modifier.size(28.dp)
@@ -1406,7 +1752,8 @@ private fun ExerciseCardPreview() {
                 exercise = UiExercise(
                     notes = "This is a note!",
                     restTime = 90,
-                    setMode = SetMode.LOAD
+                    setMode = SetMode.LOAD,
+                    supersetGroupId = 1L
                 ),
                 sets = persistentListOf(UiSet(completed = true), UiSet(elapsedTime = 100)),
                 exerciseDC = UiExerciseDC(
@@ -1467,7 +1814,13 @@ private fun ExerciseCardPreview() {
                     updateExerciseSetMode = { setMode, _ ->
                         e.value = e.value.copy(exercise = e.value.exercise.copy(setMode = setMode))
                     },
-                    updateExerciseSupersetGroup = { _, _ -> },
+                    updateExerciseSupersetGroup = { groupId, _ ->
+                        e.value = e.value.copy(
+                            exercise = e.value.exercise.copy(
+                                supersetGroupId = if (groupId == null) 1L else null
+                            )
+                        )
+                    },
                     updateExerciseWeightIncrement = { weightIncrement, _ ->
                         e.value = e.value.copy(
                             exercise = e.value.exercise.copy(weightIncrement = weightIncrement)

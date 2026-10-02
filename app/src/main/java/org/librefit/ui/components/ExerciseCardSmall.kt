@@ -42,11 +42,13 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.ColorFilter
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalLayoutDirection
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.tooling.preview.Preview
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import coil3.compose.AsyncImage
 import kotlinx.collections.immutable.persistentListOf
@@ -58,7 +60,7 @@ import org.librefit.ui.models.UiExerciseDC
 import org.librefit.ui.models.UiExerciseWithSets
 import org.librefit.ui.models.UiSet
 import org.librefit.ui.models.autoUnitSuffix
-import org.librefit.ui.models.doubleValue
+import org.librefit.ui.models.doubleValueAsString
 import org.librefit.ui.theme.LibreFitTheme
 import org.librefit.util.Formatter
 import org.librefit.util.Formatter.formatDetails
@@ -71,6 +73,12 @@ import org.librefit.util.Formatter.formatTime
  * @param exerciseWithSets A [UiExerciseWithSets] that holds the data
  * @param animatedVisibilityScope Used for image's animation transition
  * @param isRoutine When `false`, the card shows checkboxes of set completion
+ * @param supersetLink Where the card stands within its superset, as computed by [supersetLinks]
+ * over the whole list. As for [ExerciseCard], an exercise with a
+ * [org.librefit.ui.models.UiExercise.supersetGroupId] is tinted blue, labeled and striped, and the
+ * link joins it to the neighbouring cards of the same superset.
+ * @param listSpacing The spacing between the items of the list holding the card, refer to
+ * [ExerciseCard]
  * @param onDetail A lambda function triggered when the `Info` icon is clicked or when [ExerciseCardSmall] is clicked.
  * It should open the [org.librefit.ui.screens.infoExercise.InfoExerciseScreen].
  */
@@ -81,22 +89,67 @@ fun SharedTransitionScope.ExerciseCardSmall(
     isRoutine: Boolean = false,
     showExercisesImages: Boolean?,
     animatedVisibilityScope: AnimatedVisibilityScope,
+    supersetLink: SupersetLink? = null,
+    listSpacing: Dp = 15.dp,
     onDetail: () -> Unit
 ) {
+    // The exercises of a superset are performed back to back, so their cards read as a single block
+    val isSuperset = exerciseWithSets.exercise.supersetGroupId != null
+    val superset = supersetColors(groupIndex = supersetLink?.groupIndex ?: 0)
+    val isLinkedToPrevious = isSuperset && supersetLink?.isLinkedToPrevious == true
+    val isLinkedToNext = isSuperset && supersetLink?.isLinkedToNext == true
+
+    val cardShape = MaterialTheme.shapes.extraLarge
+    val shape = remember(cardShape, isLinkedToPrevious, isLinkedToNext) {
+        cardShape.linkedToNeighbours(
+            toPrevious = isLinkedToPrevious,
+            toNext = isLinkedToNext
+        )
+    }
+    val contentPadding = ButtonDefaults.MediumContentPadding
+    val layoutDirection = LocalLayoutDirection.current
+    // The space around the card, which adds up with the spacing of the list to the gap the link
+    // to the previous card spans
+    val cardPadding = 5.dp
+
     Button(
         onClick = onDetail,
         modifier = Modifier
-            .padding(5.dp),
+            .padding(cardPadding)
+            .then(
+                if (isLinkedToPrevious) {
+                    Modifier.supersetLinkToPrevious(
+                        color = superset.accent,
+                        length = listSpacing + cardPadding * 2
+                    )
+                } else Modifier
+            ),
         shapes = ButtonDefaults.shapes(
-            shape = MaterialTheme.shapes.extraLarge
+            shape = shape
         ),
-        contentPadding = ButtonDefaults.MediumContentPadding,
+        contentPadding = contentPadding,
         colors = ButtonDefaults.buttonColors(
-            containerColor = MaterialTheme.colorScheme.surfaceContainerLow,
+            containerColor = if (isSuperset) {
+                superset.container
+            } else {
+                MaterialTheme.colorScheme.surfaceContainerLow
+            },
             contentColor = MaterialTheme.colorScheme.onSurface
         )
     ) {
         Column(
+            // The stripe is drawn by the content, reaching past the padding of the button up to
+            // its edges
+            modifier = if (isSuperset) {
+                Modifier.supersetStripe(
+                    color = superset.accent,
+                    outsetStart = contentPadding.calculateStartPadding(layoutDirection),
+                    outsetVertical = maxOf(
+                        contentPadding.calculateTopPadding(),
+                        contentPadding.calculateBottomPadding()
+                    )
+                )
+            } else Modifier,
             verticalArrangement = Arrangement.spacedBy(10.dp)
         ) {
             Row(
@@ -123,14 +176,21 @@ fun SharedTransitionScope.ExerciseCardSmall(
                             .clip(MaterialTheme.shapes.medium)
                     )
                 }
-                Text(
+                Column(
                     modifier = Modifier.weight(1f),
-                    text = exerciseWithSets.exerciseDC.name,
-                    style = MaterialTheme.typography.titleLarge,
-                    fontWeight = FontWeight.SemiBold,
-                    overflow = TextOverflow.Ellipsis,
-                    maxLines = 1,
-                )
+                    verticalArrangement = Arrangement.spacedBy(4.dp)
+                ) {
+                    Text(
+                        text = exerciseWithSets.exerciseDC.name,
+                        style = MaterialTheme.typography.titleLarge,
+                        fontWeight = FontWeight.SemiBold,
+                        overflow = TextOverflow.Ellipsis,
+                        maxLines = 1,
+                    )
+                    if (isSuperset) {
+                        SupersetLabel(colors = superset)
+                    }
+                }
                 IconButton(
                     onClick = onDetail
                 ) {
@@ -247,8 +307,10 @@ fun SharedTransitionScope.ExerciseCardSmall(
                                     )
                                 } else {
                                     if (setMode == SetMode.LOAD || setMode == SetMode.BODYWEIGHT_WITH_LOAD) {
+                                        // Shown as the load field of ExerciseCard shows it: rounded
+                                        // to the unit, so whole pounds, without trailing zeros
                                         Text(
-                                            text = set.load.doubleValue().toString(),
+                                            text = set.load.doubleValueAsString(),
                                             color = contentColor
                                         )
                                     }
@@ -284,7 +346,8 @@ private fun ExerciseCardSmallPreview() {
                         exercise = UiExercise(
                             notes = "Notes",
                             restTime = 100,
-                            setMode = SetMode.BODYWEIGHT
+                            setMode = SetMode.BODYWEIGHT,
+                            supersetGroupId = 1L
                         ),
                         exerciseDC = UiExerciseDC(
                             name = "Name exercise long long long long",

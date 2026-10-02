@@ -59,6 +59,7 @@ import org.librefit.ui.components.LibreFitScaffold
 import org.librefit.ui.components.animations.DumbbellLottie
 import org.librefit.ui.components.dialogs.ConfirmDialog
 import org.librefit.ui.components.modalBottomSheets.InfoModalBottomSheet
+import org.librefit.ui.components.supersetLinks
 import org.librefit.ui.models.UiExercise
 import org.librefit.ui.models.UiExerciseDC
 import org.librefit.ui.models.UiExerciseWithSets
@@ -221,6 +222,8 @@ private fun SharedTransitionScope.EditWorkoutScreenContent(
 
     var isReorderingEnabled by rememberSaveable { mutableStateOf(false) }
 
+    val supersetLinks = remember(exercisesWithSets) { exercisesWithSets.supersetLinks() }
+
     val exerciseSectionStartIndex = 3
     val reorderableLazyListState = rememberReorderableLazyListState(lazyListState) { from, to ->
         val fromExerciseIndex = from.index - exerciseSectionStartIndex
@@ -343,13 +346,17 @@ private fun SharedTransitionScope.EditWorkoutScreenContent(
                 itemsIndexed(
                     items = exercisesWithSets,
                     key = { _, e -> e.exercise.id }
-                ) { _, exerciseWithSets ->
+                ) { i, exerciseWithSets ->
                     ReorderableItem(reorderableLazyListState, key = exerciseWithSets.exercise.id) { isDragging ->
                         ExerciseCard(
                             modifier = Modifier.animateItem(),
                             animatedVisibilityScope = animatedVisibilityScope,
                             exerciseWithSets = exerciseWithSets,
                             workout = typeOfEdit == false,
+                            // This screen is where the settings of the exercises are changed, even
+                            // when a past workout is edited and its sets carry checkboxes
+                            editMode = true,
+                            supersetLink = supersetLinks.getOrNull(i),
                             addSet = addSetToExercise,
                             isDragging = isDragging,
                             useScrollWheelForInput = useScrollWheelForInput,
@@ -426,7 +433,11 @@ private fun EditWorkoutScreenPreview() {
                             sets = persistentListOf(UiSet(elapsedTime = 600))
                         ),
                         UiExerciseWithSets(
-                            exercise = UiExercise(setMode = SetMode.LOAD, restTime = 120),
+                            exercise = UiExercise(
+                                setMode = SetMode.LOAD,
+                                restTime = 120,
+                                supersetGroupId = 1L
+                            ),
                             exerciseDC = UiExerciseDC(
                                 name = "Barbell Bench Press - Medium Grip",
                                 images = persistentListOf("Barbell_Bench_Press_-_Medium_Grip/0.webp"),
@@ -437,6 +448,23 @@ private fun EditWorkoutScreenPreview() {
                                 UiSet(load = Weight.kilograms(80.0), reps = 8),
                                 UiSet(load = Weight.kilograms(80.0), reps = 8),
                                 UiSet(load = Weight.kilograms(80.0), reps = 9)
+                            )
+                        ),
+                        UiExerciseWithSets(
+                            exercise = UiExercise(
+                                setMode = SetMode.BODYWEIGHT,
+                                restTime = 120,
+                                supersetGroupId = 1L
+                            ),
+                            exerciseDC = UiExerciseDC(
+                                name = "Pushups",
+                                images = persistentListOf("Pushups/0.webp"),
+                                equipment = Equipment.BODY_ONLY,
+                                category = Category.STRENGTH
+                            ),
+                            sets = persistentListOf(
+                                UiSet(reps = 12),
+                                UiSet(reps = 12)
                             )
                         )
                     ),

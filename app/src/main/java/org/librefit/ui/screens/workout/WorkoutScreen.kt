@@ -89,6 +89,7 @@ import org.librefit.ui.components.LibreFitScaffold
 import org.librefit.ui.components.animations.DumbbellLottie
 import org.librefit.ui.components.dialogs.ConfirmDialog
 import org.librefit.ui.components.modalBottomSheets.InfoModalBottomSheet
+import org.librefit.ui.components.supersetLinks
 import org.librefit.ui.models.UiExercise
 import org.librefit.ui.models.UiExerciseDC
 import org.librefit.ui.models.UiExerciseWithSets
@@ -320,6 +321,8 @@ private fun SharedTransitionScope.WorkoutScreenContent(
 
     var isReorderingEnabled by rememberSaveable { mutableStateOf(false) }
 
+    val supersetLinks = remember(exercisesWithSets) { exercisesWithSets.supersetLinks() }
+
     val exerciseSectionStartIndex = 1
     val reorderableLazyListState = rememberReorderableLazyListState(lazyListState) { from, to ->
         val fromExerciseIndex = from.index - exerciseSectionStartIndex
@@ -423,6 +426,7 @@ private fun SharedTransitionScope.WorkoutScreenContent(
                         idSetWithRunningStopwatch = idSetWithRunningStopwatch,
                         useScrollWheelForInput = useScrollWheelForInput,
                         workout = true,
+                        supersetLink = supersetLinks.getOrNull(i),
                         addSet = addSetToExercise,
                         onDetail = onSelectedExerciseIdChange,
                         onDelete = deleteExercise,
@@ -582,6 +586,7 @@ private fun WorkoutScreenPreview() {
             exercise = UiExercise(
                 setMode = SetMode.LOAD,
                 restTime = 120,
+                supersetGroupId = 1L
             ),
             exerciseDC = UiExerciseDC(
                 name = "Barbell Bench Press - Medium Grip",
@@ -599,6 +604,7 @@ private fun WorkoutScreenPreview() {
             exercise = UiExercise(
                 setMode = SetMode.BODYWEIGHT,
                 restTime = 120,
+                supersetGroupId = 1L
             ),
             exerciseDC = UiExerciseDC(
                 name = "Pushups",

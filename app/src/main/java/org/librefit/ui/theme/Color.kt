@@ -225,3 +225,17 @@ val surfaceContainerLowDarkHighContrast = Color(0xFF171D1E)
 val surfaceContainerDarkHighContrast = Color(0xFF1B2122)
 val surfaceContainerHighDarkHighContrast = Color(0xFF252B2C)
 val surfaceContainerHighestDarkHighContrast = Color(0xFF303637)
+
+/**
+ * The blue marking the exercises performed back to back as a superset. It is a hue rather than a
+ * surface: it is blended into the colours of the current scheme, refer to
+ * [org.librefit.ui.components.supersetColors], so it stays gentle in light and dark themes alike,
+ * dynamic colours included.
+ */
+val supersetBlue = Color(0xFF2F6FED)
+
+/**
+ * A slightly indigo blue given to every other superset in place of [supersetBlue], so two supersets
+ * sitting next to each other are not mistaken for a single one.
+ */
+val supersetBlueAlternate = Color(0xFF5C5CE6)

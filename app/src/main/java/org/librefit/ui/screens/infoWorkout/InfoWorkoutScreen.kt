@@ -18,7 +18,7 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.material3.ElevatedCard
 import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
 import androidx.compose.material3.HorizontalDivider
@@ -60,6 +60,7 @@ import org.librefit.ui.components.LibreFitScaffold
 import org.librefit.ui.components.charts.LibreFitCartesianChart
 import org.librefit.ui.components.charts.Point
 import org.librefit.ui.components.dialogs.ConfirmDialog
+import org.librefit.ui.components.supersetLinks
 import org.librefit.ui.models.UiExerciseDC
 import org.librefit.ui.models.UiExerciseWithSets
 import org.librefit.ui.models.UiSet
@@ -175,6 +176,8 @@ private fun SharedTransitionScope.InfoWorkoutScreenContent(
         )
     }
 
+
+    val supersetLinks = remember(exercises) { exercises.supersetLinks() }
 
     LibreFitScaffold(
         title = AnnotatedString(stringResource(if (isRoutine) R.string.routine else R.string.workout)),
@@ -406,12 +409,13 @@ private fun SharedTransitionScope.InfoWorkoutScreenContent(
 
 
             item { HeadlineText(stringResource(R.string.exercises)) }
-            items(exercises) { e ->
+            itemsIndexed(exercises) { i, e ->
                 ExerciseCardSmall(
                     exerciseWithSets = e,
                     isRoutine = isRoutine,
                     showExercisesImages = showExercisesImages,
-                    animatedVisibilityScope = animatedVisibilityScope
+                    animatedVisibilityScope = animatedVisibilityScope,
+                    supersetLink = supersetLinks.getOrNull(i)
                 ) {
                     navController.navigate(
                         Route.InfoExerciseScreen(

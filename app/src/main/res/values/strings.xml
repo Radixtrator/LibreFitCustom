@@ -165,6 +165,8 @@
     <string name="reorder">Reorder</string>
     <string name="add_superset">Add superset</string>
     <string name="remove_superset">Remove superset</string>
+    <string name="superset">Superset</string>
+    <string name="sets_summary">Sets: %1$d</string>
     <string name="increase">Increase</string>
     <string name="decrease">Decrease</string>
     <string name="weight_increase">Weight increase</string>
