@@ -24,8 +24,10 @@ import androidx.datastore.preferences.core.longPreferencesKey
 import androidx.datastore.preferences.core.stringPreferencesKey
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.onStart
 import kotlinx.coroutines.flow.stateIn
@@ -127,13 +129,9 @@ class UserPreferencesRepository(
             initialValue = false
         )
 
-    val isSupporter: StateFlow<Boolean> = dataStore.data
-        .map { preferences -> preferences[IS_SUPPORTER_KEY] == true }
-        .stateIn(
-            scope = applicationScope,
-            started = SharingStarted.Eagerly,
-            initialValue = false
-        )
+    // This custom build unlocks everything reserved for supporters (custom exercises, Material
+    // You), so it reports a supporter whatever has been stored
+    val isSupporter: StateFlow<Boolean> = MutableStateFlow(true).asStateFlow()
 
     val pastVersionCode: StateFlow<Long> = dataStore.data
         .map { preferences -> preferences[PAST_VERSION_CODE_KEY] ?: -1L }
