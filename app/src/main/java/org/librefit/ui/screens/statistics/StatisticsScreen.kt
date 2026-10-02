@@ -17,10 +17,8 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.tooling.preview.Preview
-import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import androidx.navigation.NavHostController
-import androidx.navigation.compose.rememberNavController
+import org.koin.androidx.compose.koinViewModel
 import org.librefit.R
 import org.librefit.enums.InfoMode
 import org.librefit.enums.chart.StatisticsChart
@@ -39,8 +37,8 @@ import kotlin.random.Random
 
 @Composable
 fun StatisticsScreen(
-    navController: NavHostController,
-    viewModel: StatisticsScreenViewModel = hiltViewModel()
+    onNavigateBack: () -> Unit,
+    viewModel: StatisticsScreenViewModel = koinViewModel()
 ) {
 
     val muscleDistributionPoints by viewModel.muscleDistributionPoints.collectAsStateWithLifecycle()
@@ -56,7 +54,7 @@ fun StatisticsScreen(
     val exercisesDistributionStatisticsChart by viewModel.exercisesDistributionStatisticsChart.collectAsStateWithLifecycle()
 
     StatisticsScreenContent(
-        navController = navController,
+        onNavigateBack = onNavigateBack,
         muscleDistributionPoints = muscleDistributionPoints,
         muscleDistributionLegendIds = muscleDistributionLegendIds,
         muscleDistributionStatisticsChart = muscleDistributionStatisticsChart,
@@ -70,7 +68,7 @@ fun StatisticsScreen(
 
 @Composable
 private fun StatisticsScreenContent(
-    navController: NavHostController,
+    onNavigateBack: () -> Unit,
     muscleDistributionPoints: List<Point>,
     muscleDistributionLegendIds: List<Pair<Int, Long?>>,
     muscleDistributionStatisticsChart: StatisticsChart,
@@ -82,7 +80,7 @@ private fun StatisticsScreenContent(
 ) {
     LibreFitScaffold(
         title = AnnotatedString(stringResource(R.string.statistics)),
-        navigateBack = navController::navigateUp
+        navigateBack = onNavigateBack
     ) { innerPadding ->
         LibreFitLazyColumn(innerPadding = innerPadding) {
             item {
@@ -194,7 +192,7 @@ fun StatisticsScreenPreview() {
 
         LibreFitTheme(dynamicColor = false, themeMode = ThemeMode.DARK) {
             StatisticsScreenContent(
-                navController = rememberNavController(),
+                onNavigateBack = {},
                 muscleDistributionPoints = muscleDistributionPoints,
                 muscleDistributionLegendIds = cutoffsIds,
                 muscleDistributionStatisticsChart = muscleDistributionStatisticsChart,

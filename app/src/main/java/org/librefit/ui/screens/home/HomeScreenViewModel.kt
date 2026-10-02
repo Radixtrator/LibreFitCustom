@@ -12,7 +12,6 @@ import android.content.ContentResolver
 import android.net.Uri
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.map
@@ -27,11 +26,9 @@ import org.librefit.models.RoutineFile
 import org.librefit.ui.models.mappers.toEntity
 import org.librefit.ui.models.mappers.toUi
 import java.time.LocalDateTime
-import javax.inject.Inject
 import kotlin.random.Random
 
-@HiltViewModel
-class HomeScreenViewModel @Inject constructor(
+class HomeScreenViewModel(
     private val userPreferences: UserPreferencesRepository,
     private val workoutRepository: WorkoutRepository
 ) : ViewModel() {

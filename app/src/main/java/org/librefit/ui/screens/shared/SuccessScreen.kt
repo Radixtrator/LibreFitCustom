@@ -43,8 +43,6 @@ import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.min
-import androidx.navigation.NavHostController
-import androidx.navigation.compose.rememberNavController
 import org.librefit.R
 import org.librefit.enums.SuccessMessage
 import org.librefit.enums.userPreferences.ThemeMode
@@ -56,7 +54,7 @@ import org.librefit.ui.theme.LibreFitTheme
 @Composable
 fun SuccessScreen(
     message: SuccessMessage,
-    navController: NavHostController
+    onNavigateBack: () -> Unit,
 ) {
     LibreFitScaffold { innerPadding ->
         BoxWithConstraints(
@@ -73,7 +71,7 @@ fun SuccessScreen(
                 ) {
                     successScreenContent(
                         message = message,
-                        navigateBack = navController::navigateUp,
+                        navigateBack = onNavigateBack,
                         maxHeight = maxHeight,
                         maxWidth = maxWidth
                     )
@@ -89,7 +87,7 @@ fun SuccessScreen(
                 ) {
                     successScreenContent(
                         message = message,
-                        navigateBack = navController::navigateUp,
+                        navigateBack = onNavigateBack,
                         maxHeight = maxHeight,
                         maxWidth = maxWidth
                     )
@@ -153,6 +151,9 @@ private fun LazyListScope.successScreenContent(
 @Composable
 private fun SuccessScreenPreview() {
     LibreFitTheme(dynamicColor = false, themeMode = ThemeMode.DARK) {
-        SuccessScreen(SuccessMessage.WORKOUT_SAVED, rememberNavController())
+        SuccessScreen(
+            message = SuccessMessage.WORKOUT_SAVED,
+            onNavigateBack = {}
+        )
     }
 }

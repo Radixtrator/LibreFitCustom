@@ -39,8 +39,8 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.NavigationBar
-import androidx.compose.material3.NavigationBarItem
+import androidx.compose.material3.ShortNavigationBar
+import androidx.compose.material3.ShortNavigationBarItem
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
@@ -69,18 +69,15 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.core.content.ContextCompat
-import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
 import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import androidx.navigation.NavHostController
-import androidx.navigation.compose.rememberNavController
 import kotlinx.collections.immutable.persistentListOf
+import org.koin.androidx.compose.koinViewModel
 import org.librefit.R
 import org.librefit.enums.pages.MainScreenPages
 import org.librefit.enums.userPreferences.ThemeMode
-import org.librefit.nav.Route
 import org.librefit.ui.components.GetAppNameInAnnotatedBuilder
 import org.librefit.ui.components.HeadlineText
 import org.librefit.ui.components.LibreFitButton
@@ -98,9 +95,12 @@ import kotlin.random.Random
 @OptIn(ExperimentalSharedTransitionApi::class)
 @Composable
 fun SharedTransitionScope.HomeScreen(
-    navController: NavHostController,
+    onNavigateToInfoWorkout: (Long) -> Unit,
+    onNavigateToRequestPermissionScreen: (Long) -> Unit,
+    onNavigateToWorkout: (Long) -> Unit,
+    onNavigateToTutorialScreen: () -> Unit,
     animatedVisibilityScope: AnimatedVisibilityScope,
-    viewModel: HomeScreenViewModel = hiltViewModel(),
+    viewModel: HomeScreenViewModel = koinViewModel(),
 ) {
     val context = LocalContext.current
     var hasNotificationPermission by remember {
@@ -161,7 +161,8 @@ fun SharedTransitionScope.HomeScreen(
     }
 
     HomeScreenContent(
-        navController = navController,
+        onNavigateToInfoWorkout = onNavigateToInfoWorkout,
+        onNavigateToTutorialScreen = onNavigateToTutorialScreen,
         runningWorkout = runningWorkout,
         routines = routines,
         animatedVisibilityScope = animatedVisibilityScope,
@@ -178,16 +179,9 @@ fun SharedTransitionScope.HomeScreen(
             val requestPermission = !hasNotificationPermission && requestPermissionNextTime
 
             if (requestPermission) {
-                navController.navigate(Route.RequestPermissionScreen(workoutId = workoutId)) {
-                    launchSingleTop = true
-                }
+                onNavigateToRequestPermissionScreen(workoutId)
             } else {
-                navController.navigate(Route.WorkoutScreen(workoutId = workoutId)) {
-                    launchSingleTop = true
-                    popUpTo(Route.RequestPermissionScreen(workoutId = workoutId)) {
-                        inclusive = true
-                    }
-                }
+                onNavigateToWorkout(workoutId)
             }
         }
     )
@@ -196,7 +190,8 @@ fun SharedTransitionScope.HomeScreen(
 @OptIn(ExperimentalSharedTransitionApi::class, ExperimentalMaterial3ExpressiveApi::class)
 @Composable
 private fun SharedTransitionScope.HomeScreenContent(
-    navController: NavHostController,
+    onNavigateToInfoWorkout: (Long) -> Unit,
+    onNavigateToTutorialScreen: () -> Unit,
     routines: List<UiWorkout>,
     runningWorkout: UiWorkout?,
     animatedVisibilityScope: AnimatedVisibilityScope,
@@ -366,11 +361,7 @@ private fun SharedTransitionScope.HomeScreenContent(
                         textAlign = TextAlign.Center
                     )
                     IconButton(
-                        onClick = {
-                            navController.navigate(Route.TutorialScreen()) {
-                                launchSingleTop = true
-                            }
-                        }
+                        onClick = onNavigateToTutorialScreen
                     ) {
                         Icon(
                             painter = painterResource(R.drawable.ic_help),
@@ -386,9 +377,7 @@ private fun SharedTransitionScope.HomeScreenContent(
                 val shape = MaterialTheme.shapes.extraLarge
                 ElevatedCard(
                     onClick = {
-                        navController.navigate(Route.InfoWorkoutScreen(workoutId = routine.id)) {
-                            launchSingleTop = true
-                        }
+                        onNavigateToInfoWorkout(routine.id)
                     },
                     shape = shape,
                     modifier = Modifier
@@ -441,9 +430,7 @@ private fun SharedTransitionScope.HomeScreenContent(
                                 }
                                 IconButton(
                                     onClick = {
-                                        navController.navigate(Route.InfoWorkoutScreen(workoutId = routine.id)) {
-                                            launchSingleTop = true
-                                        }
+                                        onNavigateToInfoWorkout(routine.id)
                                     }
                                 ) {
                                     Icon(
@@ -515,9 +502,9 @@ fun HomeScreenPreview() {
             fabIcon = painterResource(R.drawable.ic_add),
             fabText = stringResource(R.string.create_routine),
             bottomBar = {
-                NavigationBar {
+                ShortNavigationBar {
                     MainScreenPages.entries.forEach { page ->
-                        NavigationBarItem(
+                        ShortNavigationBarItem(
                             selected = pagerState.currentPage == page.ordinal,
                             onClick = { },
                             icon = {
@@ -561,7 +548,8 @@ fun HomeScreenPreview() {
                 SharedTransitionLayout {
                     AnimatedVisibility(visible = true) {
                         HomeScreenContent(
-                            navController = rememberNavController(),
+                            onNavigateToInfoWorkout = {},
+                            onNavigateToTutorialScreen = {},
                             runningWorkout = runningWorkout.value,
                             onReorderRoutines = { _ -> },
                             onImportRoutine = {},

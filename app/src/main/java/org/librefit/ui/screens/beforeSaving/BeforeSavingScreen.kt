@@ -54,16 +54,14 @@ import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
-import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import androidx.navigation.NavHostController
-import androidx.navigation.compose.rememberNavController
 import kotlinx.collections.immutable.persistentListOf
 import kotlinx.coroutines.flow.collectLatest
+import org.koin.androidx.compose.koinViewModel
+import org.koin.core.parameter.parametersOf
 import org.librefit.R
 import org.librefit.enums.InfoMode
 import org.librefit.enums.SetMode
-import org.librefit.enums.SuccessMessage
 import org.librefit.enums.exercise.Category
 import org.librefit.enums.exercise.Equipment
 import org.librefit.enums.userPreferences.ThemeMode
@@ -94,9 +92,12 @@ import kotlin.time.Duration.Companion.seconds
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalSharedTransitionApi::class)
 @Composable
 fun SharedTransitionScope.BeforeSavingScreen(
-    navController: NavHostController,
-    viewModel: BeforeSavingScreenViewModel = hiltViewModel(),
-    animatedVisibilityScope: AnimatedVisibilityScope
+    onNavigateBack: () -> Unit,
+    onNavigateToInfoWorkout: (Long) -> Unit,
+    onNavigateToSuccessScreen: () -> Unit,
+    route: Route.BeforeSavingScreen,
+    viewModel: BeforeSavingScreenViewModel = koinViewModel { parametersOf(route) },
+    animatedVisibilityScope: AnimatedVisibilityScope,
 ) {
 
     val volume by viewModel.volume.collectAsStateWithLifecycle()
@@ -173,7 +174,9 @@ fun SharedTransitionScope.BeforeSavingScreen(
 
 
     BeforeSavingScreenContent(
-        navController = navController,
+        onNavigateBack = onNavigateBack,
+        onNavigateToInfoWorkout = onNavigateToInfoWorkout,
+        onNavigateToSuccessScreen = onNavigateToSuccessScreen,
         showUnlikeRoutineDialog = { showUnlikeRoutineDialog.value = true },
         showDatePickerDialog = { showDatePickerDialog.value = true },
         exercises = exercises,
@@ -197,7 +200,9 @@ fun SharedTransitionScope.BeforeSavingScreen(
 @OptIn(ExperimentalSharedTransitionApi::class, ExperimentalMaterial3ExpressiveApi::class)
 @Composable
 fun SharedTransitionScope.BeforeSavingScreenContent(
-    navController: NavHostController,
+    onNavigateBack: () -> Unit,
+    onNavigateToInfoWorkout: (Long) -> Unit,
+    onNavigateToSuccessScreen: () -> Unit,
     showUnlikeRoutineDialog: () -> Unit,
     showDatePickerDialog: () -> Unit,
     exercises: List<UiExerciseWithSets>,
@@ -248,18 +253,15 @@ fun SharedTransitionScope.BeforeSavingScreenContent(
 
     LibreFitScaffold(
         title = AnnotatedString(stringResource(R.string.overview)),
-        navigateBack = navController::navigateUp,
+        navigateBack = onNavigateBack,
         actions = persistentListOf({
             saveExercisesWithWorkout()
-            navController.navigate(Route.SuccessScreen(SuccessMessage.WORKOUT_SAVED)) {
-                launchSingleTop = true
-                popUpTo(Route.MainScreen) { inclusive = false }
-            }
+            onNavigateToSuccessScreen()
         }),
         actionsDescription = persistentListOf(stringResource(R.string.save)),
         actionsEnabled = persistentListOf(!isTitleEmpty && !isTitleTooLong)
     ) { innerPadding ->
-        LibreFitLazyColumn(innerPadding) {
+        LibreFitLazyColumn(innerPadding = innerPadding) {
             item {
                 OutlinedTextField(
                     shape = MaterialTheme.shapes.large,
@@ -424,11 +426,7 @@ fun SharedTransitionScope.BeforeSavingScreenContent(
                 item {
                     ElevatedCard(
                         shape = MaterialTheme.shapes.extraLargeIncreased,
-                        onClick = {
-                            navController.navigate(Route.InfoWorkoutScreen(routine.id)) {
-                                launchSingleTop = true
-                            }
-                        },
+                        onClick = { onNavigateToInfoWorkout(routine.id) },
                         modifier = Modifier
                             .sharedBounds(
                                 sharedContentState = rememberSharedContentState(routine.id),
@@ -479,11 +477,7 @@ fun SharedTransitionScope.BeforeSavingScreenContent(
                                 elevated = false,
                                 text = stringResource(R.string.open_this_routine),
                                 icon = painterResource(R.drawable.ic_open_new)
-                            ) {
-                                navController.navigate(Route.InfoWorkoutScreen(routine.id)) {
-                                    launchSingleTop = true
-                                }
-                            }
+                            ) { onNavigateToInfoWorkout(routine.id) }
                         }
                     }
                 }
@@ -623,7 +617,9 @@ private fun BeforeSavingScreenPreview() {
         SharedTransitionLayout {
             AnimatedVisibility(visible = true) {
                 BeforeSavingScreenContent(
-                    navController = rememberNavController(),
+                    onNavigateBack = {},
+                    onNavigateToInfoWorkout = {},
+                    onNavigateToSuccessScreen = {},
                     showUnlikeRoutineDialog = {},
                     showDatePickerDialog = {},
                     exercises = e,

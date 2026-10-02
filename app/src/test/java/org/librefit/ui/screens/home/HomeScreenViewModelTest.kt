@@ -18,9 +18,6 @@ import io.mockk.slot
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.test.runTest
-import org.junit.Before
-import org.junit.Rule
-import org.junit.Test
 import org.librefit.MainDispatcherRule
 import org.librefit.db.entity.Workout
 import org.librefit.db.relations.WorkoutWithExercisesAndSets
@@ -31,12 +28,14 @@ import org.librefit.ui.models.UiWorkout
 import org.librefit.ui.models.mappers.toEntity
 import org.librefit.ui.models.mappers.toUi
 import org.librefit.ui.models.moveRoutine
+import kotlin.test.AfterTest
+import kotlin.test.BeforeTest
+import kotlin.test.Test
 
 @OptIn(ExperimentalCoroutinesApi::class)
 class HomeScreenViewModelTest {
     // MainDispatcherRule to control coroutine execution
-    @get:Rule
-    val mainDispatcherRule = MainDispatcherRule()
+    private val mainDispatcherRule = MainDispatcherRule()
 
     // The mock repositories
     private lateinit var userPreferencesRepository: UserPreferencesRepository
@@ -58,8 +57,10 @@ class HomeScreenViewModelTest {
         Workout(id = 3, title = "Tempo run", state = WorkoutState.ROUTINE, position = 2)
     )
 
-    @Before
+    @BeforeTest
     fun setUp() {
+        mainDispatcherRule.setUp()
+
         // Arrange: Create the mocks for the repositories
         userPreferencesRepository = mockk()
         workoutRepository = mockk()
@@ -78,6 +79,11 @@ class HomeScreenViewModelTest {
         }
 
         viewModel = HomeScreenViewModel(userPreferencesRepository, workoutRepository)
+    }
+
+    @AfterTest
+    fun tearDown() {
+        mainDispatcherRule.tearDown()
     }
 
     @Test

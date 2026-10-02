@@ -44,16 +44,13 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
-import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import androidx.navigation.NavHostController
-import androidx.navigation.compose.rememberNavController
+import org.koin.androidx.compose.koinViewModel
 import org.librefit.R
 import org.librefit.enums.userPreferences.DialogPreference
 import org.librefit.enums.userPreferences.Language
 import org.librefit.enums.userPreferences.ThemeMode
 import org.librefit.enums.userPreferences.UnitSystem
-import org.librefit.nav.Route
 import org.librefit.ui.components.HeadlineText
 import org.librefit.ui.components.LibreFitLazyColumn
 import org.librefit.ui.components.LibreFitScaffold
@@ -66,8 +63,9 @@ import kotlin.random.Random
 @OptIn(ExperimentalSharedTransitionApi::class)
 @Composable
 fun SettingsScreen(
-    navController: NavHostController,
-    viewModel: SettingsScreenViewModel = hiltViewModel()
+    onNavigateBack: () -> Unit,
+    onNavigateToSupportScreen: () -> Unit,
+    viewModel: SettingsScreenViewModel = koinViewModel()
 ) {
     val unitSystem by viewModel.unitSystem.collectAsStateWithLifecycle()
 
@@ -127,7 +125,8 @@ fun SettingsScreen(
     }
 
     SettingsScreenContent(
-        navController = navController,
+        onNavigateBack = onNavigateBack,
+        onNavigateToSupportScreen = onNavigateToSupportScreen,
         selectedTheme = selectedTheme,
         materialModeOn = materialModeOn,
         selectedLanguage = selectedLanguage,
@@ -156,7 +155,8 @@ fun SettingsScreen(
 
 @Composable
 private fun SettingsScreenContent(
-    navController: NavHostController,
+    onNavigateBack: () -> Unit,
+    onNavigateToSupportScreen: () -> Unit,
     selectedTheme: ThemeMode,
     materialModeOn: Boolean,
     selectedLanguage: Language,
@@ -180,9 +180,9 @@ private fun SettingsScreenContent(
 ) {
     LibreFitScaffold(
         title = AnnotatedString(stringResource(id = R.string.settings)),
-        navigateBack = navController::navigateUp
+        navigateBack = onNavigateBack
     ) { innerPadding ->
-        LibreFitLazyColumn(innerPadding) {
+        LibreFitLazyColumn(innerPadding = innerPadding) {
             item { HeadlineText(text = stringResource(id = R.string.appearance)) }
 
             item {
@@ -203,9 +203,7 @@ private fun SettingsScreenContent(
                             if (isSupporter) {
                                 onMaterialModeChange(!materialModeOn)
                             } else {
-                                navController.navigate(Route.SupportScreen(true)) {
-                                    launchSingleTop = true
-                                }
+                                onNavigateToSupportScreen()
                             }
                         },
                         icon = painterResource(R.drawable.ic_material),
@@ -289,7 +287,7 @@ private fun SettingsScreenContent(
                             showConfirmDialogShowExerciseImages()
                         }
                     },
-                    icon = painterResource(if (showExercisesImages == true) R.drawable.ic_image else R.drawable.ic_hide_image),
+                    icon = painterResource(R.drawable.ic_image),
                     settingName = stringResource(R.string.show_images),
                     settingDesc = stringResource(if (showExercisesImages == true) R.string.show_images_desc else R.string.hide_images_desc)
                 )
@@ -363,7 +361,7 @@ private fun SettingItem(
         ) {
             Icon(
                 painter = icon,
-                contentDescription = stringResource(R.string.theme),
+                contentDescription = null,
                 modifier = Modifier.padding(start = 5.dp, end = 20.dp)
             )
             Column {
@@ -403,7 +401,8 @@ fun SettingsScreenPreview() {
 
     LibreFitTheme(dynamicColor = materialModeOn, themeMode = theme) {
         SettingsScreenContent(
-            navController = rememberNavController(),
+            onNavigateBack = {},
+            onNavigateToSupportScreen = {},
             selectedTheme = theme,
             materialModeOn = materialModeOn,
             selectedLanguage = Language.SYSTEM,
