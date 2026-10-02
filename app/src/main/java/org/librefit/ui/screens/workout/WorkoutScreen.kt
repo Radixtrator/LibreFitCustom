@@ -15,6 +15,7 @@ import androidx.compose.animation.ExperimentalSharedTransitionApi
 import androidx.compose.animation.SharedTransitionLayout
 import androidx.compose.animation.SharedTransitionScope
 import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -25,9 +26,12 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.lazy.LazyItemScope
+import androidx.compose.foundation.lazy.LazyListState
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.lazy.rememberLazyListState
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material3.ButtonGroup
 import androidx.compose.material3.CircularWavyProgressIndicator
 import androidx.compose.material3.ElevatedCard
@@ -51,11 +55,13 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.clipToBounds
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
@@ -67,6 +73,7 @@ import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.ui.unit.dp
@@ -74,6 +81,7 @@ import androidx.compose.ui.zIndex
 import androidx.lifecycle.compose.LifecycleResumeEffect
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import kotlinx.collections.immutable.persistentListOf
+import kotlinx.coroutines.launch
 import org.koin.androidx.compose.koinViewModel
 import org.koin.core.parameter.parametersOf
 import org.librefit.R
@@ -91,9 +99,9 @@ import org.librefit.ui.components.LibreFitScaffold
 import org.librefit.ui.components.animations.DumbbellLottie
 import org.librefit.ui.components.dialogs.ConfirmDialog
 import org.librefit.ui.components.modalBottomSheets.InfoModalBottomSheet
-import org.librefit.ui.components.supersetLinks
 import org.librefit.ui.components.rememberStickyHeaderScrollConnection
 import org.librefit.ui.components.rememberStickyHeaderScrollState
+import org.librefit.ui.components.supersetLinks
 import org.librefit.ui.models.UiExercise
 import org.librefit.ui.models.UiExerciseDC
 import org.librefit.ui.models.UiExerciseWithSets
@@ -139,6 +147,12 @@ fun SharedTransitionScope.WorkoutScreen(
     val previousPerformances by viewModel.previousPerformances.collectAsStateWithLifecycle()
 
     val restTimerProgress by viewModel.restTimerProgress.collectAsStateWithLifecycle()
+
+    val nextInSuperset by viewModel.nextInSuperset.collectAsStateWithLifecycle()
+
+    // Hoisted so the floating bar can bring the next exercise of a superset into view
+    val lazyListState = rememberLazyListState()
+    val coroutineScope = rememberCoroutineScope()
 
     val runningWorkoutId by viewModel.runningWorkoutId.collectAsStateWithLifecycle()
 
@@ -217,13 +231,26 @@ fun SharedTransitionScope.WorkoutScreen(
                 // hidden header disappears underneath the app bar instead of drawing over it
                 .clipToBounds()
         ) {
+            val nextExerciseIndex = nextInSuperset?.let { next ->
+                exercisesWithSets.indexOfFirst { it.exercise.id == next.exerciseId }
+            }?.takeIf { it != -1 }
+
             FloatingWorkoutActionBar(
                 restTimerProgress = restTimerProgress,
                 restTime = restTime,
                 modifyRestTime = viewModel::modifyRestTime,
+                nextExerciseName = nextExerciseIndex?.let { exercisesWithSets[it].exerciseDC.name },
+                nextSetNumber = (nextInSuperset?.setIndex ?: 0) + 1,
+                goToNextExercise = {
+                    nextExerciseIndex?.let { index ->
+                        // The header always comes first in the list, sticky or not
+                        coroutineScope.launch { lazyListState.animateScrollToItem(index + 1) }
+                    }
+                },
                 fabAction = onNavigateToAddExercises
             )
             WorkoutScreenContent(
+                lazyListState = lazyListState,
                 animatedVisibilityScope = animatedVisibilityScope,
                 exercisesWithSets = exercisesWithSets,
                 previousPerformances = previousPerformances,
@@ -282,6 +309,7 @@ fun SharedTransitionScope.WorkoutScreen(
 @OptIn(ExperimentalSharedTransitionApi::class, ExperimentalMaterial3ExpressiveApi::class)
 @Composable
 private fun SharedTransitionScope.WorkoutScreenContent(
+    lazyListState: LazyListState,
     animatedVisibilityScope: AnimatedVisibilityScope,
     exercisesWithSets: List<UiExerciseWithSets>,
     previousPerformances: List<List<PreviousPerformanceSet>?>,
@@ -317,7 +345,6 @@ private fun SharedTransitionScope.WorkoutScreenContent(
     applyPreviousSetPerformance: (Long) -> Unit,
     saveDefaultBarWeight: (Double) -> Unit,
 ) {
-    val lazyListState = rememberLazyListState()
     val hapticFeedback = LocalHapticFeedback.current
 
     // Appear/disappear behavior of the sticky header while the list is scrolled
@@ -515,10 +542,14 @@ private fun BoxScope.FloatingWorkoutActionBar(
     restTimerProgress: Float,
     restTime: Int,
     modifyRestTime: (Boolean) -> Unit,
+    nextExerciseName: String?,
+    nextSetNumber: Int,
+    goToNextExercise: () -> Unit,
     fabAction: () -> Unit
 ) {
     HorizontalFloatingToolbar(
-        expanded = restTime != 0,
+        // The rest comes first. Without one, the bar points to the next exercise of a superset
+        expanded = restTime != 0 || nextExerciseName != null,
         floatingActionButton = {
             FloatingToolbarDefaults.StandardFloatingActionButton(
                 onClick = fabAction
@@ -539,69 +570,99 @@ private fun BoxScope.FloatingWorkoutActionBar(
             animationSpec = WavyProgressIndicatorDefaults.ProgressAnimationSpec,
             label = "progressTimerAnimation"
         )
-        //Rest timer
-        Row(
-            horizontalArrangement = Arrangement.spacedBy(10.dp),
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            val iconSize = remember { 48.dp }
-            Text(
-                modifier = Modifier.padding(start = 10.dp),
-                text = stringResource(R.string.rest)
-            )
-            Box(
-                contentAlignment = Alignment.Center
+        if (restTime != 0 || nextExerciseName == null) {
+            //Rest timer
+            Row(
+                horizontalArrangement = Arrangement.spacedBy(10.dp),
+                verticalAlignment = Alignment.CenterVertically
             ) {
-                CircularWavyProgressIndicator(
-                    modifier = Modifier.size(iconSize),
-                    progress = { animatedTimerProgress.value },
+                val iconSize = remember { 48.dp }
+                Text(
+                    modifier = Modifier.padding(start = 10.dp),
+                    text = stringResource(R.string.rest)
                 )
-                Text("$restTime")
-            }
+                Box(
+                    contentAlignment = Alignment.Center
+                ) {
+                    CircularWavyProgressIndicator(
+                        modifier = Modifier.size(iconSize),
+                        progress = { animatedTimerProgress.value },
+                    )
+                    Text("$restTime")
+                }
 
-            val interactionSources = remember { List(2) { MutableInteractionSource() } }
-            ButtonGroup(
-                overflowIndicator = {}
+                val interactionSources = remember { List(2) { MutableInteractionSource() } }
+                ButtonGroup(
+                    overflowIndicator = {}
+                ) {
+                    customItem(
+                        buttonGroupContent = {
+                            IconButton(
+                                modifier = Modifier.animateWidth(interactionSources[0]),
+                                onClick = { modifyRestTime(false) },
+                                enabled = restTime > 0,
+                                shapes = IconButtonDefaults.shapes(),
+                                interactionSource = interactionSources[0]
+                            ) {
+                                Icon(
+                                    painter = painterResource(R.drawable.ic_replay_10),
+                                    contentDescription = stringResource(R.string.add_ten_seconds),
+                                    modifier = Modifier.size(iconSize)
+                                )
+                            }
+                        },
+                        menuContent = {}
+                    )
+                    customItem(
+                        buttonGroupContent = {
+                            IconButton(
+                                modifier = Modifier.animateWidth(interactionSources[1]),
+                                onClick = { modifyRestTime(true) },
+                                enabled = restTime > 0,
+                                shapes = IconButtonDefaults.shapes(),
+                                interactionSource = interactionSources[1]
+                            ) {
+                                Icon(
+                                    painter = painterResource(R.drawable.ic_forward_10),
+                                    contentDescription = stringResource(R.string.reduce_ten_seconds),
+                                    modifier = Modifier.size(iconSize)
+                                )
+                            }
+                        },
+                        menuContent = {}
+                    )
+                }
+
+
+            }
+        } else {
+            // Within a round of a superset there is no rest, the next exercise follows at once
+            Row(
+                modifier = Modifier
+                    .clip(CircleShape)
+                    .clickable(onClick = goToNextExercise)
+                    .padding(horizontal = 10.dp, vertical = 6.dp),
+                horizontalArrangement = Arrangement.spacedBy(10.dp),
+                verticalAlignment = Alignment.CenterVertically
             ) {
-                customItem(
-                    buttonGroupContent = {
-                        IconButton(
-                            modifier = Modifier.animateWidth(interactionSources[0]),
-                            onClick = { modifyRestTime(false) },
-                            enabled = restTime > 0,
-                            shapes = IconButtonDefaults.shapes(),
-                            interactionSource = interactionSources[0]
-                        ) {
-                            Icon(
-                                painter = painterResource(R.drawable.ic_replay_10),
-                                contentDescription = stringResource(R.string.add_ten_seconds),
-                                modifier = Modifier.size(iconSize)
-                            )
-                        }
-                    },
-                    menuContent = {}
-                )
-                customItem(
-                    buttonGroupContent = {
-                        IconButton(
-                            modifier = Modifier.animateWidth(interactionSources[1]),
-                            onClick = { modifyRestTime(true) },
-                            enabled = restTime > 0,
-                            shapes = IconButtonDefaults.shapes(),
-                            interactionSource = interactionSources[1]
-                        ) {
-                            Icon(
-                                painter = painterResource(R.drawable.ic_forward_10),
-                                contentDescription = stringResource(R.string.reduce_ten_seconds),
-                                modifier = Modifier.size(iconSize)
-                            )
-                        }
-                    },
-                    menuContent = {}
+                Column(modifier = Modifier.widthIn(max = 220.dp)) {
+                    Text(
+                        text = stringResource(R.string.next_in_superset, nextSetNumber),
+                        style = MaterialTheme.typography.labelMedium,
+                        color = MaterialTheme.colorScheme.primary
+                    )
+                    Text(
+                        text = nextExerciseName,
+                        style = MaterialTheme.typography.titleMedium,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis
+                    )
+                }
+                Icon(
+                    painter = painterResource(R.drawable.ic_arrow_forward),
+                    contentDescription = stringResource(R.string.go_to_next_exercise)
                 )
             }
-
-
         }
     }
 }
@@ -687,6 +748,7 @@ private fun WorkoutScreenPreview() {
                 ) { innerPadding ->
                     Box(modifier = Modifier.padding(innerPadding)) {
                         WorkoutScreenContent(
+                            lazyListState = rememberLazyListState(),
                             animatedVisibilityScope = this@AnimatedVisibility,
                             exercisesWithSets = e,
                             previousPerformances = listOf(
@@ -743,6 +805,9 @@ private fun WorkoutScreenPreview() {
                             restTimerProgress = 97f / 120,
                             restTime = 0,
                             modifyRestTime = {},
+                            nextExerciseName = "Side Lateral Raise",
+                            nextSetNumber = 2,
+                            goToNextExercise = {},
                             fabAction = {}
                         )
                     }

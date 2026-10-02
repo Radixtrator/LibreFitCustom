@@ -84,4 +84,38 @@ class SupersetRestTest {
 
         assertEquals(90, exercises.restTimeAfterCompleting(20))
     }
+
+    @Test
+    fun `the next exercise of the round is the following one in the superset`() {
+        val exercises = listOf(
+            exercise(1, 60, 7, true, false),
+            exercise(2, 90, 7, false, false),
+            exercise(3, 30, 7, false, false)
+        )
+
+        assertEquals(NextInSuperset(exerciseId = 2, setIndex = 0), exercises.nextInSupersetRound(10))
+    }
+
+    @Test
+    fun `the next exercise wraps around to an earlier one still to do`() {
+        val exercises = listOf(
+            exercise(1, 60, 7, true, false),
+            exercise(2, 90, 7, false, true)
+        )
+
+        // Set 2 of the second exercise is done, but the first exercise still has its set 2
+        assertEquals(NextInSuperset(exerciseId = 1, setIndex = 1), exercises.nextInSupersetRound(21))
+    }
+
+    @Test
+    fun `there is no next exercise once the round is done or outside of a superset`() {
+        val superset = listOf(
+            exercise(1, 60, 7, true),
+            exercise(2, 90, 7, true)
+        )
+        val single = listOf(exercise(3, 60, null, true))
+
+        assertEquals(null, superset.nextInSupersetRound(20))
+        assertEquals(null, single.nextInSupersetRound(30))
+    }
 }

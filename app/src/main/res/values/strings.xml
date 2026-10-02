@@ -240,6 +240,8 @@
     <string name="assisted_bodyweight">Assisted bodyweight</string>
     <string name="support">Support</string>
     <string name="support_decrease">Support decrease</string>
+    <string name="next_in_superset">Next · set %1$d</string>
+    <string name="go_to_next_exercise">Go to the next exercise</string>
     <string name="routine_import_failed">This file is not a routine exported from LibreFit</string>
 
 

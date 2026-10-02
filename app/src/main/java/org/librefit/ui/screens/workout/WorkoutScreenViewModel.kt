@@ -42,6 +42,7 @@ import org.librefit.models.Weight
 import org.librefit.nav.Route
 import org.librefit.services.WorkoutService
 import org.librefit.services.WorkoutServiceManager
+import org.librefit.ui.models.NextInSuperset
 import org.librefit.ui.models.UiExercise
 import org.librefit.ui.models.UiExerciseWithSets
 import org.librefit.ui.models.UiSet
@@ -50,6 +51,7 @@ import org.librefit.ui.models.UiWorkoutWithExercisesAndSets
 import org.librefit.ui.models.mappers.toEntity
 import org.librefit.ui.models.mappers.toUi
 import org.librefit.ui.models.moveExercise
+import org.librefit.ui.models.nextInSupersetRound
 import org.librefit.ui.models.restTimeAfterCompleting
 import org.librefit.ui.models.withAmrap
 import org.librefit.ui.models.withNormalizedExercisePositions
@@ -410,6 +412,15 @@ class WorkoutScreenViewModel(
         syncToRepository()
     }
 
+    private val _nextInSuperset = MutableStateFlow<NextInSuperset?>(null)
+
+    /**
+     * The exercise to move on to after a set of a superset has been completed in the middle of its
+     * round, when no rest is taken. It is cleared by the next set completed. Refer to
+     * [nextInSupersetRound]
+     */
+    val nextInSuperset = _nextInSuperset.asStateFlow()
+
     fun updateSetCompleted(completed: Boolean, id: Long) {
         _exercises.update { currentExercises ->
             currentExercises.map { exercise ->
@@ -428,6 +439,7 @@ class WorkoutScreenViewModel(
         if (restTime != 0) {
             startRestTimer(restTime)
         }
+        _nextInSuperset.update { if (completed) exercises.value.nextInSupersetRound(id) else null }
         syncToRepository()
     }
 

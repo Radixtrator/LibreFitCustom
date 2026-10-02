@@ -31,3 +31,32 @@ fun List<UiExerciseWithSets>.restTimeAfterCompleting(setId: Long): Int {
 
     return if (isRoundDone) superset.maxOf { it.exercise.restTime } else 0
 }
+
+/**
+ * Where to go once the set with id [setId] has been completed without a rest, i.e. in the middle of
+ * a round of a superset, refer to [restTimeAfterCompleting].
+ *
+ * @property exerciseId The [UiExercise.id] of the exercise to train next
+ * @property setIndex The index of the set to do there, the round being trained
+ */
+data class NextInSuperset(val exerciseId: Long, val setIndex: Int)
+
+/**
+ * Returns the exercise of the same superset that still has its set of the round of [setId] to do,
+ * looking at the ones after the exercise of [setId] first and then wrapping around, or `null` when
+ * the set is not in a superset or its round is done.
+ */
+fun List<UiExerciseWithSets>.nextInSupersetRound(setId: Long): NextInSuperset? {
+    val exerciseWithSets = find { e -> e.sets.any { it.id == setId } } ?: return null
+    val groupId = exerciseWithSets.exercise.supersetGroupId ?: return null
+
+    val round = exerciseWithSets.sets.indexOfFirst { it.id == setId }
+    val superset = filter { it.exercise.supersetGroupId == groupId }
+    val position = superset.indexOf(exerciseWithSets)
+
+    val next = (superset.drop(position + 1) + superset.take(position))
+        .firstOrNull { member -> member.sets.getOrNull(round)?.completed == false }
+        ?: return null
+
+    return NextInSuperset(exerciseId = next.exercise.id, setIndex = round)
+}
