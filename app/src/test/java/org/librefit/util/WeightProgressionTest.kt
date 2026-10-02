@@ -11,6 +11,7 @@ package org.librefit.util
 import com.google.common.truth.Truth.assertThat
 import org.junit.Test
 import org.librefit.db.entity.Set
+import org.librefit.enums.SetMode
 import org.librefit.models.Weight
 
 class WeightProgressionTest {
@@ -180,5 +181,48 @@ class WeightProgressionTest {
         )
 
         assertThat(suggested).isNull()
+    }
+
+    @Test
+    fun `the support of an assisted exercise goes down after a successful session`() {
+        val suggested = WeightProgression.suggestedLoad(
+            previousLoad = Weight.kilograms(30.0),
+            increment = increment,
+            sessionSuccessful = true,
+            decreasing = true
+        )
+
+        assertThat(suggested).isEqualTo(Weight.kilograms(27.5))
+    }
+
+    @Test
+    fun `the support does not go below zero`() {
+        val suggested = WeightProgression.suggestedLoad(
+            previousLoad = Weight.kilograms(1.0),
+            increment = increment,
+            sessionSuccessful = true,
+            decreasing = true
+        )
+
+        assertThat(suggested).isEqualTo(Weight.zero())
+    }
+
+    @Test
+    fun `nothing is suggested once there is no support left`() {
+        val suggested = WeightProgression.suggestedLoad(
+            previousLoad = Weight.zero(),
+            increment = increment,
+            sessionSuccessful = true,
+            decreasing = true
+        )
+
+        assertThat(suggested).isNull()
+    }
+
+    @Test
+    fun `assisted bodyweight moves the body weight minus the support`() {
+        assertThat(SetMode.ASSISTED_BODYWEIGHT.effectiveLoad(load = 20.0, bodyWeight = 80.0)).isEqualTo(60.0)
+        assertThat(SetMode.ASSISTED_BODYWEIGHT.effectiveLoad(load = 90.0, bodyWeight = 80.0)).isEqualTo(0.0)
+        assertThat(SetMode.BODYWEIGHT_WITH_LOAD.effectiveLoad(load = 20.0, bodyWeight = 80.0)).isEqualTo(100.0)
     }
 }

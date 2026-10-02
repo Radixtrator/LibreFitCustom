@@ -12,6 +12,29 @@ enum class SetMode {
     LOAD,
     BODYWEIGHT,
     BODYWEIGHT_WITH_LOAD,
-    DURATION
+
+    /**
+     * A bodyweight exercise done on a machine taking part of the weight off, e.g. an assisted
+     * pull-up. The load of its sets is that support, so it goes *down* as the user gets stronger,
+     * refer to [org.librefit.util.WeightProgression.suggestedLoad]
+     */
+    ASSISTED_BODYWEIGHT,
+    DURATION;
     //TODO: DURATION_WITH_DISTANCE
+
+    /** Whether the sets of this mode carry a load the user enters */
+    val hasLoad: Boolean
+        get() = this == LOAD || this == BODYWEIGHT_WITH_LOAD || this == ASSISTED_BODYWEIGHT
+
+    /**
+     * The weight actually moved on each repetition, given the [load] of the set and the
+     * [bodyWeight] of the user, both in the same unit
+     */
+    fun effectiveLoad(load: Double, bodyWeight: Double): Double = when (this) {
+        LOAD -> load
+        BODYWEIGHT -> bodyWeight
+        BODYWEIGHT_WITH_LOAD -> load + bodyWeight
+        ASSISTED_BODYWEIGHT -> (bodyWeight - load).coerceAtLeast(0.0)
+        DURATION -> 0.0
+    }
 }

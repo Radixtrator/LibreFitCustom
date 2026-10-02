@@ -81,12 +81,8 @@ class DataHelper(
                             when (workoutChart) {
                                 WorkoutChart.DURATION -> it.workout.timeElapsed / 60.0
                                 WorkoutChart.VOLUME -> it.exercisesWithSets.sumOf { exe ->
-                                    val includeBodyweight =
-                                        exe.exercise.setMode == SetMode.BODYWEIGHT ||
-                                                exe.exercise.setMode == SetMode.BODYWEIGHT_WITH_LOAD
-
                                     exe.sets.filter { it.completed }.sumOf {
-                                        (it.load.doubleValue(unitSystem.value) + if (includeBodyweight) bodyWeight else 0.0) * it.reps
+                                        exe.exercise.setMode.effectiveLoad(it.load.doubleValue(unitSystem.value), bodyWeight) * it.reps
                                     }
                                 }
                                 WorkoutChart.REPS -> it.exercisesWithSets.sumOf { exe ->
@@ -114,14 +110,9 @@ class DataHelper(
 
         val volume = workout.exercisesWithSets.sumOf { exe ->
             exe.sets.sumOf { set ->
-                val volumeForEachRep = when (exe.exercise.setMode) {
-                    SetMode.LOAD -> if (isRoutine || set.completed) set.load.doubleValue(unitSystem.value) else 0.0
-                    SetMode.BODYWEIGHT -> if (isRoutine || set.completed) bodyWeight else 0.0
-                    SetMode.BODYWEIGHT_WITH_LOAD -> if (isRoutine || set.completed) set.load.doubleValue(
-                        unitSystem.value
-                    ) + bodyWeight else 0.0
-                    SetMode.DURATION -> 0.0
-                }
+                val volumeForEachRep = if (isRoutine || set.completed) {
+                    exe.exercise.setMode.effectiveLoad(set.load.doubleValue(unitSystem.value), bodyWeight)
+                } else 0.0
 
                 (volumeForEachRep * set.reps)
             }
@@ -203,25 +194,11 @@ class DataHelper(
 
                             val value = when (muscleDistributionStatisticsChart) {
                                 StatisticsChart.LOAD -> sets.sumOf {
-                                    when (exercise.setMode) {
-                                        SetMode.LOAD -> it.load.doubleValue(unitSystem.value)
-                                        SetMode.BODYWEIGHT -> bodyWeight
-                                        SetMode.BODYWEIGHT_WITH_LOAD -> it.load.doubleValue(
-                                            unitSystem.value
-                                        ) + bodyWeight
-                                        SetMode.DURATION -> 0
-                                    }.toDouble()
+                                    exercise.setMode.effectiveLoad(it.load.doubleValue(unitSystem.value), bodyWeight)
                                 }
                                 StatisticsChart.REPS -> sets.sumOf { it.reps }
                                 StatisticsChart.VOLUME -> sets.sumOf {
-                                    when (exercise.setMode) {
-                                        SetMode.LOAD -> it.load.doubleValue(unitSystem.value)
-                                        SetMode.BODYWEIGHT -> bodyWeight
-                                        SetMode.BODYWEIGHT_WITH_LOAD -> it.load.doubleValue(
-                                            unitSystem.value
-                                        ) + bodyWeight
-                                        SetMode.DURATION -> 0
-                                    }.toDouble() * it.reps
+                                    exercise.setMode.effectiveLoad(it.load.doubleValue(unitSystem.value), bodyWeight) * it.reps
                                 }
                                 StatisticsChart.DURATION -> sets.sumOf { it.elapsedTime }
                             }.toDouble()
@@ -350,26 +327,12 @@ class DataHelper(
 
                             val value = when (exerciseDistributionStatisticsChart) {
                                 StatisticsChart.LOAD -> sets.sumOf {
-                                    when (exercise.setMode) {
-                                        SetMode.LOAD -> it.load.doubleValue(unitSystem.value)
-                                        SetMode.BODYWEIGHT -> bodyWeight
-                                        SetMode.BODYWEIGHT_WITH_LOAD -> it.load.doubleValue(
-                                            unitSystem.value
-                                        ) + bodyWeight
-                                        SetMode.DURATION -> 0
-                                    }.toDouble()
+                                    exercise.setMode.effectiveLoad(it.load.doubleValue(unitSystem.value), bodyWeight)
                                 }
 
                                 StatisticsChart.REPS -> sets.sumOf { it.reps }
                                 StatisticsChart.VOLUME -> sets.sumOf {
-                                    when (exercise.setMode) {
-                                        SetMode.LOAD -> it.load.doubleValue(unitSystem.value)
-                                        SetMode.BODYWEIGHT -> bodyWeight
-                                        SetMode.BODYWEIGHT_WITH_LOAD -> it.load.doubleValue(
-                                            unitSystem.value
-                                        ) + bodyWeight
-                                        SetMode.DURATION -> 0
-                                    }.toDouble() * it.reps
+                                    exercise.setMode.effectiveLoad(it.load.doubleValue(unitSystem.value), bodyWeight) * it.reps
                                 }
 
                                 StatisticsChart.DURATION -> sets.sumOf { it.elapsedTime }

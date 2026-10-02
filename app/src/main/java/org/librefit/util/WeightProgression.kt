@@ -68,18 +68,27 @@ object WeightProgression {
      * @param increment Refer to [org.librefit.db.entity.Exercise.weightIncrement]
      * @param sessionSuccessful Refer to [isSessionSuccessful]
      * @param incrementMultiplier Refer to [incrementMultiplier]
+     * @param decreasing Whether progressing means a lighter load, as for the support of
+     * [org.librefit.enums.SetMode.ASSISTED_BODYWEIGHT]. The load then goes down by the increment,
+     * no lower than zero, and nothing is suggested once there is no support left to take away.
      */
     fun suggestedLoad(
         previousLoad: Weight,
         increment: Weight,
         sessionSuccessful: Boolean,
-        incrementMultiplier: Int = MIN_INCREMENT_MULTIPLIER
+        incrementMultiplier: Int = MIN_INCREMENT_MULTIPLIER,
+        decreasing: Boolean = false
     ): Weight? {
         if (!sessionSuccessful || increment <= Weight.zero()) return null
 
         val multiplier = incrementMultiplier
             .coerceIn(MIN_INCREMENT_MULTIPLIER, MAX_INCREMENT_MULTIPLIER)
+        val step = increment * multiplier.toDouble()
 
-        return previousLoad + increment * multiplier.toDouble()
+        return if (decreasing) {
+            if (previousLoad <= Weight.zero()) null else previousLoad - step
+        } else {
+            previousLoad + step
+        }
     }
 }

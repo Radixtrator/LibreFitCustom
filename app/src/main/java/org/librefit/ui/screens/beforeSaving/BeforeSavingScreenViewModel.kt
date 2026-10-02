@@ -176,7 +176,7 @@ class BeforeSavingScreenViewModel(
                                         elapsedTime = 0,
                                         load = Weight.zero()
                                     )
-                                    SetMode.BODYWEIGHT_WITH_LOAD -> it.copy(elapsedTime = 0)
+                                    SetMode.BODYWEIGHT_WITH_LOAD, SetMode.ASSISTED_BODYWEIGHT -> it.copy(elapsedTime = 0)
                                     SetMode.LOAD -> it.copy(elapsedTime = 0)
                                 }
                             }

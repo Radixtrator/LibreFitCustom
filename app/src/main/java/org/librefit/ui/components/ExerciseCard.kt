@@ -657,101 +657,104 @@ fun SharedTransitionScope.ExerciseCard(
                         HorizontalDivider()
                     }
 
-                    // Set mode selection
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.SpaceAround,
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
+                    // The type of set belongs to the routine like the other settings of the
+                    // exercise, so it is only picked while editing
+                    if (editMode) {
                         Row(
-                            modifier = Modifier.weight(0.5f),
-                            verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.Center
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceAround,
+                            verticalAlignment = Alignment.CenterVertically
                         ) {
-                            IconButton(
-                                // Refer to InfoModalBottomSheet to know the reason behind this value.
-                                // Do NOT change it.
-                                onClick = { showInfo(InfoMode.TYPE_OF_SET) }
+                            Row(
+                                modifier = Modifier.weight(0.5f),
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.Center
                             ) {
-                                Icon(
-                                    painter = painterResource(R.drawable.ic_info),
-                                    contentDescription = stringResource(R.string.info) + ":"
-                                )
-                            }
-                            Text(stringResource(R.string.type_of_set))
-                        }
-
-                        var expanded by remember { mutableStateOf(false) }
-
-
-                        // Type of set selector
-                        ExposedDropdownMenuBox(
-                            expanded = expanded,
-                            onExpandedChange = { expanded = it },
-                            modifier = Modifier
-                                .padding(start = 10.dp, end = 10.dp)
-                                .weight(0.5f)
-                        ) {
-                            OutlinedTextField(
-                                shape = MaterialTheme.shapes.large,
-                                readOnly = true,
-                                value = stringResource(Formatter.setModeToStringId(exerciseWithSets.exercise.setMode)),
-                                onValueChange = {},
-                                singleLine = true,
-                                trailingIcon = {
-                                    ExposedDropdownMenuDefaults.TrailingIcon(expanded = expanded)
-                                },
-                                modifier = Modifier.menuAnchor(ExposedDropdownMenuAnchorType.PrimaryNotEditable),
-                                colors = ExposedDropdownMenuDefaults.outlinedTextFieldColors()
-                            )
-                            ExposedDropdownMenu(
-                                expanded = expanded,
-                                onDismissRequest = { expanded = false },
-                                // Allow DropdownMenuGroup to control styling, shape, and elevation
-                                containerColor = Color.Transparent,
-                                shadowElevation = 0.dp,
-                                border = null
-                            ) {
-                                // Wrap items inside Expressive DropdownMenuGroup
-                                DropdownMenuGroup(
-                                    shapes = MenuDefaults.groupShape(0, 1)
+                                IconButton(
+                                    // Refer to InfoModalBottomSheet to know the reason behind this value.
+                                    // Do NOT change it.
+                                    onClick = { showInfo(InfoMode.TYPE_OF_SET) }
                                 ) {
-                                    val itemCount = SetMode.entries.size
+                                    Icon(
+                                        painter = painterResource(R.drawable.ic_info),
+                                        contentDescription = stringResource(R.string.info) + ":"
+                                    )
+                                }
+                                Text(stringResource(R.string.type_of_set))
+                            }
 
-                                    SetMode.entries.forEachIndexed { index, mode ->
-                                        val isSelected = mode == exerciseWithSets.exercise.setMode
+                            var expanded by remember { mutableStateOf(false) }
 
-                                        CheckableDropdownMenuItem(
-                                            checked = isSelected,
-                                            onCheckedChange = {
-                                                updateExerciseSetMode(
-                                                    mode,
-                                                    exerciseWithSets.exercise.id
-                                                )
-                                                expanded = false
-                                            },
-                                            text = {
-                                                Text(
-                                                    text = stringResource(
-                                                        Formatter.setModeToStringId(
-                                                            mode
+
+                            // Type of set selector
+                            ExposedDropdownMenuBox(
+                                expanded = expanded,
+                                onExpandedChange = { expanded = it },
+                                modifier = Modifier
+                                    .padding(start = 10.dp, end = 10.dp)
+                                    .weight(0.5f)
+                            ) {
+                                OutlinedTextField(
+                                    shape = MaterialTheme.shapes.large,
+                                    readOnly = true,
+                                    value = stringResource(Formatter.setModeToStringId(exerciseWithSets.exercise.setMode)),
+                                    onValueChange = {},
+                                    singleLine = true,
+                                    trailingIcon = {
+                                        ExposedDropdownMenuDefaults.TrailingIcon(expanded = expanded)
+                                    },
+                                    modifier = Modifier.menuAnchor(ExposedDropdownMenuAnchorType.PrimaryNotEditable),
+                                    colors = ExposedDropdownMenuDefaults.outlinedTextFieldColors()
+                                )
+                                ExposedDropdownMenu(
+                                    expanded = expanded,
+                                    onDismissRequest = { expanded = false },
+                                    // Allow DropdownMenuGroup to control styling, shape, and elevation
+                                    containerColor = Color.Transparent,
+                                    shadowElevation = 0.dp,
+                                    border = null
+                                ) {
+                                    // Wrap items inside Expressive DropdownMenuGroup
+                                    DropdownMenuGroup(
+                                        shapes = MenuDefaults.groupShape(0, 1)
+                                    ) {
+                                        val itemCount = SetMode.entries.size
+
+                                        SetMode.entries.forEachIndexed { index, mode ->
+                                            val isSelected = mode == exerciseWithSets.exercise.setMode
+
+                                            CheckableDropdownMenuItem(
+                                                checked = isSelected,
+                                                onCheckedChange = {
+                                                    updateExerciseSetMode(
+                                                        mode,
+                                                        exerciseWithSets.exercise.id
+                                                    )
+                                                    expanded = false
+                                                },
+                                                text = {
+                                                    Text(
+                                                        text = stringResource(
+                                                            Formatter.setModeToStringId(
+                                                                mode
+                                                            )
                                                         )
                                                     )
-                                                )
-                                            },
-                                            trailingContent = if (exerciseWithSets.exercise.setMode == mode) {
-                                                {
-                                                    Icon(
-                                                        painter = painterResource(R.drawable.ic_check),
-                                                        contentDescription = stringResource(R.string.checkbox)
-                                                    )
-                                                }
-                                            } else null,
-                                            // Expressive rounded shapes per item position in group
-                                            shapes = MenuDefaults.itemShape(index, itemCount),
-                                        )
-                                    }
+                                                },
+                                                trailingContent = if (exerciseWithSets.exercise.setMode == mode) {
+                                                    {
+                                                        Icon(
+                                                            painter = painterResource(R.drawable.ic_check),
+                                                            contentDescription = stringResource(R.string.checkbox)
+                                                        )
+                                                    }
+                                                } else null,
+                                                // Expressive rounded shapes per item position in group
+                                                shapes = MenuDefaults.itemShape(index, itemCount),
+                                            )
+                                        }
 
+                                    }
                                 }
                             }
                         }
@@ -760,12 +763,10 @@ fun SharedTransitionScope.ExerciseCard(
                     // Progressive overload. It is meaningful only for the set modes carrying a load,
                     // and like the other settings of the exercise it is only changed while editing
                     if (editMode) {
-                        AnimatedVisibility(
-                            visible = exerciseWithSets.exercise.setMode == SetMode.LOAD ||
-                                    exerciseWithSets.exercise.setMode == SetMode.BODYWEIGHT_WITH_LOAD
-                        ) {
+                        AnimatedVisibility(visible = exerciseWithSets.exercise.setMode.hasLoad) {
                             WeightIncrementRow(
                                 weightIncrement = exerciseWithSets.exercise.weightIncrement,
+                                decreasing = exerciseWithSets.exercise.setMode == SetMode.ASSISTED_BODYWEIGHT,
                                 onWeightIncrementChange = { newIncrement ->
                                     updateExerciseWeightIncrement(
                                         newIncrement,
@@ -804,11 +805,13 @@ fun SharedTransitionScope.ExerciseCard(
                                     color = MaterialTheme.colorScheme.secondary
                                 )
                             } else {
-                                if (exerciseWithSets.exercise.setMode == SetMode.LOAD ||
-                                    exerciseWithSets.exercise.setMode == SetMode.BODYWEIGHT_WITH_LOAD
-                                ) {
+                                if (exerciseWithSets.exercise.setMode.hasLoad) {
                                     Text(
-                                        text = stringResource(R.string.load) + " (" + unit + ")",
+                                        text = stringResource(
+                                            if (exerciseWithSets.exercise.setMode == SetMode.ASSISTED_BODYWEIGHT) {
+                                                R.string.support
+                                            } else R.string.load
+                                        ) + " (" + unit + ")",
                                         color = MaterialTheme.colorScheme.secondary
                                     )
                                 }
@@ -1136,6 +1139,7 @@ internal fun Modifier.supersetLinkToPrevious(
 @Composable
 private fun WeightIncrementRow(
     weightIncrement: Weight,
+    decreasing: Boolean,
     onWeightIncrementChange: (Weight) -> Unit,
     showInfo: (InfoMode) -> Unit
 ) {
@@ -1170,7 +1174,12 @@ private fun WeightIncrementRow(
                     contentDescription = stringResource(R.string.info)
                 )
             }
-            Text(stringResource(R.string.weight_increase) + " (" + unit + ")")
+            // For an assisted exercise progressing means less support, so the step is shown as the
+            // amount it goes down by, refer to WeightProgression.suggestedLoad
+            Text(
+                stringResource(if (decreasing) R.string.support_decrease else R.string.weight_increase) +
+                        " (" + unit + ")"
+            )
         }
 
         Row(verticalAlignment = Alignment.CenterVertically) {
@@ -1205,6 +1214,9 @@ private fun WeightIncrementRow(
                     )
                 },
                 singleLine = true,
+                prefix = if (decreasing) {
+                    { Text("\u2212") }
+                } else null,
                 keyboardOptions = KeyboardOptions(keyboardType = weightKeyboardType(unitSystem)),
                 colors = OutlinedTextFieldDefaults.colors(
                     unfocusedBorderColor = Color.Transparent,
@@ -1267,7 +1279,7 @@ private fun Set(
     val focusManager = LocalFocusManager.current
 
     // The progression rewards beating the target only where a load can actually go up
-    val isAmrapAvailable = setMode == SetMode.LOAD || setMode == SetMode.BODYWEIGHT_WITH_LOAD
+    val isAmrapAvailable = setMode.hasLoad
 
     val timeTextFieldState = rememberTextFieldState(
         initialText = Formatter.formateSecondsInMinutesAndSeconds(set.elapsedTime)
@@ -1569,7 +1581,8 @@ private fun Set(
                     val text = when (setMode) {
                         SetMode.LOAD -> "${previousLoad.formatToText()}\n* $previousReps"
                         SetMode.BODYWEIGHT -> "$previousReps"
-                        SetMode.BODYWEIGHT_WITH_LOAD -> "${previousLoad.formatToText()}\n* $previousReps"
+                        SetMode.BODYWEIGHT_WITH_LOAD, SetMode.ASSISTED_BODYWEIGHT ->
+                            "${previousLoad.formatToText()}\n* $previousReps"
                         SetMode.DURATION -> Formatter.formateSecondsInMinutesAndSeconds(previousTime)
                     }
                     Column(horizontalAlignment = Alignment.CenterHorizontally) {
@@ -1662,7 +1675,7 @@ private fun Set(
                     }
                 }
             } else {
-                if (setMode == SetMode.LOAD || setMode == SetMode.BODYWEIGHT_WITH_LOAD) {
+                if (setMode.hasLoad) {
                     //Weight
                     Row(
                         verticalAlignment = Alignment.CenterVertically,
@@ -1863,7 +1876,7 @@ private fun ExerciseCardPreview() {
         when (e.value.exercise.setMode) {
             SetMode.BODYWEIGHT -> PreviousPerformanceSet(reps = 10)
             SetMode.DURATION -> PreviousPerformanceSet(time = 124)
-            SetMode.BODYWEIGHT_WITH_LOAD -> PreviousPerformanceSet(
+            SetMode.BODYWEIGHT_WITH_LOAD, SetMode.ASSISTED_BODYWEIGHT -> PreviousPerformanceSet(
                 reps = 10,
                 load = Weight.kilograms(12.0)
             )
@@ -1983,7 +1996,7 @@ private fun ExerciseCardPreview() {
                                             SetMode.BODYWEIGHT -> set.copy(reps = p.reps)
                                             SetMode.LOAD -> set.copy(load = p.load)
                                             SetMode.DURATION -> set.copy(elapsedTime = p.time)
-                                            SetMode.BODYWEIGHT_WITH_LOAD -> set.copy(
+                                            SetMode.BODYWEIGHT_WITH_LOAD, SetMode.ASSISTED_BODYWEIGHT -> set.copy(
                                                 load = p.load,
                                                 reps = p.reps
                                             )

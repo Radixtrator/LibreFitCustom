@@ -137,7 +137,9 @@ class EditWorkoutScreenViewModel(
                 idExerciseDC = exerciseDC.id,
                 setMode = when (exerciseDC.category) {
                     Category.STRETCHING, Category.CARDIO -> SetMode.DURATION
-                    else -> when (exerciseDC.equipment) {
+                    else -> if (exerciseDC.name.contains("Assisted", true)) {
+                        SetMode.ASSISTED_BODYWEIGHT
+                    } else when (exerciseDC.equipment) {
                         Equipment.BODY_ONLY, Equipment.FOAM_ROLL, Equipment.EXERCISE_BALL,
                         Equipment.MEDICINE_BALL, Equipment.BANDS -> SetMode.BODYWEIGHT
 

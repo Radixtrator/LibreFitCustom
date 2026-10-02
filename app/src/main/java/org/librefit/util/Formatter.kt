@@ -92,6 +92,7 @@ object Formatter {
             SetMode.LOAD -> R.string.load
             SetMode.BODYWEIGHT_WITH_LOAD -> R.string.bodyweight_with_load
             SetMode.BODYWEIGHT -> R.string.bodyweight
+            SetMode.ASSISTED_BODYWEIGHT -> R.string.assisted_bodyweight
             SetMode.DURATION -> R.string.duration
         }
     }

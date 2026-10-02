@@ -245,7 +245,7 @@ fun SharedTransitionScope.ExerciseCardSmall(
                         if (setMode == SetMode.DURATION) {
                             Text(stringResource(R.string.time))
                         } else {
-                            if (setMode == SetMode.LOAD || setMode == SetMode.BODYWEIGHT_WITH_LOAD) {
+                            if (setMode.hasLoad) {
                                 Text(
                                     stringResource(R.string.load) + " (" + autoUnitSuffix() + ")"
                                 )
@@ -307,7 +307,7 @@ fun SharedTransitionScope.ExerciseCardSmall(
                                         color = contentColor
                                     )
                                 } else {
-                                    if (setMode == SetMode.LOAD || setMode == SetMode.BODYWEIGHT_WITH_LOAD) {
+                                    if (setMode.hasLoad) {
                                         // Shown as the load field of ExerciseCard shows it: rounded
                                         // to the unit, so whole pounds, without trailing zeros
                                         Text(

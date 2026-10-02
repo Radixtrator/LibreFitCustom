@@ -690,7 +690,7 @@ private fun SharedTransitionScope.HistoryPage(
                                             Text(stringResource(R.string.time))
                                         } else {
                                             Text(stringResource(R.string.reps))
-                                            if (setMode == SetMode.LOAD || setMode == SetMode.BODYWEIGHT_WITH_LOAD) {
+                                            if (setMode.hasLoad) {
                                                 Text(
                                                     stringResource(R.string.load) + " (" + autoUnitSuffix() + ")"
                                                 )
@@ -752,7 +752,7 @@ private fun SharedTransitionScope.HistoryPage(
                                                     )
                                                 } else {
                                                     Text(text="${set.reps}", color=contentColor)
-                                                    if (setMode == SetMode.LOAD || setMode == SetMode.BODYWEIGHT_WITH_LOAD) {
+                                                    if (setMode.hasLoad) {
                                                         Text(
                                                             text = set.load.doubleValueAsString(),
                                                             color = contentColor

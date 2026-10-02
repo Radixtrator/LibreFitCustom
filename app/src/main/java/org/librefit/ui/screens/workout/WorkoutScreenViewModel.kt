@@ -143,7 +143,8 @@ class WorkoutScreenViewModel(
                             previousLoad = load,
                             increment = eWs.exercise.weightIncrement,
                             sessionSuccessful = previousSessionSuccessful,
-                            incrementMultiplier = incrementMultiplier
+                            incrementMultiplier = incrementMultiplier,
+                            decreasing = eWs.exercise.setMode == SetMode.ASSISTED_BODYWEIGHT
                         )
                     }
 
@@ -155,7 +156,7 @@ class WorkoutScreenViewModel(
                         )
 
                         SetMode.BODYWEIGHT -> PreviousPerformanceSet(reps = reps)
-                        SetMode.BODYWEIGHT_WITH_LOAD -> PreviousPerformanceSet(
+                        SetMode.BODYWEIGHT_WITH_LOAD, SetMode.ASSISTED_BODYWEIGHT -> PreviousPerformanceSet(
                             load = load,
                             reps = reps,
                             suggestedLoad = suggestedLoad
@@ -195,7 +196,7 @@ class WorkoutScreenViewModel(
                         updateSetReps(reps, setId)
                     }
 
-                    SetMode.BODYWEIGHT_WITH_LOAD -> {
+                    SetMode.BODYWEIGHT_WITH_LOAD, SetMode.ASSISTED_BODYWEIGHT -> {
                         updateSetLoad(loadToApply, setId)
                         updateSetReps(reps, setId)
                     }
@@ -279,7 +280,9 @@ class WorkoutScreenViewModel(
                 idExerciseDC = exerciseDC.id,
                 setMode = when (exerciseDC.category) {
                     Category.STRETCHING, Category.CARDIO -> SetMode.DURATION
-                    else -> when (exerciseDC.equipment) {
+                    else -> if (exerciseDC.name.contains("Assisted", true)) {
+                        SetMode.ASSISTED_BODYWEIGHT
+                    } else when (exerciseDC.equipment) {
                         Equipment.BODY_ONLY, Equipment.FOAM_ROLL, Equipment.EXERCISE_BALL,
                         Equipment.MEDICINE_BALL, Equipment.BANDS -> SetMode.BODYWEIGHT
 
