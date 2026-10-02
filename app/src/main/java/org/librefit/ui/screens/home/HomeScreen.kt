@@ -140,6 +140,8 @@ fun SharedTransitionScope.HomeScreen(
 
     val runningWorkout by viewModel.runningWorkout.collectAsStateWithLifecycle()
 
+    val lastWorkout by viewModel.lastWorkout.collectAsStateWithLifecycle()
+
     // The routine the user asked to export, kept until the system file picker comes back with the
     // destination to write it to
     val routineIdToExport = rememberSaveable { mutableStateOf<Long?>(null) }
@@ -158,6 +160,7 @@ fun SharedTransitionScope.HomeScreen(
         onNavigateToInfoWorkout = onNavigateToInfoWorkout,
         onNavigateToTutorialScreen = onNavigateToTutorialScreen,
         runningWorkout = runningWorkout,
+        lastWorkout = lastWorkout,
         routines = routines,
         animatedVisibilityScope = animatedVisibilityScope,
         deleteRunningWorkout = viewModel::deleteRunningWorkout,
@@ -185,6 +188,7 @@ private fun SharedTransitionScope.HomeScreenContent(
     onNavigateToTutorialScreen: () -> Unit,
     routines: List<UiWorkout>,
     runningWorkout: UiWorkout?,
+    lastWorkout: UiWorkout?,
     animatedVisibilityScope: AnimatedVisibilityScope,
     deleteRunningWorkout: () -> Unit,
     onReorderRoutines: (List<Long>) -> Unit,
@@ -251,7 +255,18 @@ private fun SharedTransitionScope.HomeScreenContent(
     }
 
     LibreFitLazyColumn(lazyListState = lazyListState) {
-        item {
+        // A running workout is the first thing to get back to. Otherwise the top of the screen
+        // recalls the last workout, while an empty one is started from the bottom of the list
+        if (runningWorkout == null) {
+            lastWorkout?.let { workout ->
+                item {
+                    LastWorkoutCard(
+                        workout = workout,
+                        onClick = { onNavigateToInfoWorkout(workout.id) }
+                    )
+                }
+            }
+        } else item {
             val infiniteTransition = rememberInfiniteTransition()
             val animatedColor by infiniteTransition.animateColor(
                 initialValue = Color.Transparent,
@@ -279,7 +294,7 @@ private fun SharedTransitionScope.HomeScreenContent(
                 }
             ) {
                 LibreFitButton(
-                    text = stringResource(if (runningWorkout != null) R.string.resume_workout else R.string.start_empty_workout),
+                    text = stringResource(R.string.resume_workout),
                     icon = painterResource(R.drawable.ic_play_arrow),
                     onClick = {
                         navigateToRoutine(runningWorkout?.id ?: 0)
@@ -450,6 +465,62 @@ private fun SharedTransitionScope.HomeScreenContent(
                 }
             }
         }
+
+        if (runningWorkout == null) {
+            item {
+                LibreFitButton(
+                    text = stringResource(R.string.start_empty_workout),
+                    icon = painterResource(R.drawable.ic_play_arrow),
+                    elevated = false,
+                    onClick = { navigateToRoutine(0) }
+                )
+            }
+        }
+    }
+}
+
+/**
+ * Recalls the last finished [workout]: the routine it was started from, when it was finished and
+ * how long it took. [onClick] opens it.
+ */
+@Composable
+private fun LastWorkoutCard(
+    workout: UiWorkout,
+    onClick: () -> Unit
+) {
+    ElevatedCard(
+        onClick = onClick,
+        shape = MaterialTheme.shapes.extraLarge
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(20.dp),
+            verticalArrangement = Arrangement.spacedBy(5.dp)
+        ) {
+            Text(
+                text = stringResource(R.string.last_workout),
+                style = MaterialTheme.typography.labelLarge,
+                color = MaterialTheme.colorScheme.primary
+            )
+            Text(
+                text = workout.title,
+                style = MaterialTheme.typography.headlineMedium,
+                fontWeight = FontWeight.SemiBold,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis
+            )
+            Text(
+                text = stringResource(R.string.finished_on) + ": " +
+                        Formatter.getLongDateFromLocalDate(workout.completed),
+                style = MaterialTheme.typography.bodyMedium
+            )
+            Text(
+                text = stringResource(R.string.duration) + ": " +
+                        Formatter.formatTime(workout.timeElapsed),
+                style = MaterialTheme.typography.bodyMedium
+            )
+        }
     }
 }
 
@@ -529,6 +600,7 @@ fun HomeScreenPreview() {
                             onNavigateToInfoWorkout = {},
                             onNavigateToTutorialScreen = {},
                             runningWorkout = runningWorkout.value,
+                            lastWorkout = UiWorkout(title = "\uD83C\uDFCB Upper body", timeElapsed = 2514),
                             onReorderRoutines = { _ -> },
                             onExportRoutine = { _ -> },
                             routines = listOf(

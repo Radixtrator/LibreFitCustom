@@ -69,6 +69,7 @@ class HomeScreenViewModelTest {
         every { userPreferencesRepository.requestPermissionsNextTime } returns MutableStateFlow(true)
         every { workoutRepository.routines } returns routinesFlow
         every { workoutRepository.runningWorkoutsWithExercisesAndSets } returns MutableStateFlow(emptyList<WorkoutWithExercisesAndSets>())
+        every { workoutRepository.completedWorkouts } returns MutableStateFlow(emptyList<Workout>())
 
         // Arrange: Saving an order rewrites the positions and the database emits the routines in it
         coEvery { workoutRepository.updateRoutinesOrder(capture(routineIdsInNewOrder)) } answers {

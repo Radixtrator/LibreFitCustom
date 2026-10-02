@@ -46,6 +46,15 @@ class HomeScreenViewModel(
             initialValue = null
         )
 
+    /** The most recently finished workout, or `null` when none has been finished yet */
+    val lastWorkout = workoutRepository.completedWorkouts
+        .map { list -> list.firstOrNull()?.toUi() }
+        .stateIn(
+            scope = viewModelScope,
+            started = SharingStarted.WhileSubscribed(5_000),
+            initialValue = null
+        )
+
     /**
      * Persists the order the user gave to the routines by dragging them in [HomeScreen].
      * [routineIds] lists the ids of every routine from the first to the last one. Nothing is

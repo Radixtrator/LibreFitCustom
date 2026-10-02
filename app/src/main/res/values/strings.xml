@@ -236,6 +236,7 @@
     <string name="discard_running_workout_and_select_routine_text">To start this routine, the current unsaved, ongoing workout has to be dismissed. Are you sure you want to discard it? This action cannot be undone.</string>
     <string name="import_routine">Import routine</string>
     <string name="export_routine">Export routine</string>
+    <string name="last_workout">Last workout</string>
     <string name="routine_import_failed">This file is not a routine exported from LibreFit</string>
 
 
