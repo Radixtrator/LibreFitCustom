@@ -30,6 +30,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.pager.HorizontalPager
 import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.material3.ElevatedCard
@@ -43,6 +44,7 @@ import androidx.compose.material3.NavigationBarItem
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -51,10 +53,13 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.drawWithCache
+import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.drawOutline
 import androidx.compose.ui.graphics.drawscope.Stroke
+import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.buildAnnotatedString
@@ -73,7 +78,6 @@ import androidx.navigation.NavHostController
 import androidx.navigation.compose.rememberNavController
 import kotlinx.collections.immutable.persistentListOf
 import org.librefit.R
-import org.librefit.enums.InfoMode
 import org.librefit.enums.pages.MainScreenPages
 import org.librefit.enums.userPreferences.ThemeMode
 import org.librefit.nav.Route
@@ -83,10 +87,12 @@ import org.librefit.ui.components.LibreFitButton
 import org.librefit.ui.components.LibreFitLazyColumn
 import org.librefit.ui.components.LibreFitScaffold
 import org.librefit.ui.components.dialogs.ConfirmDialog
-import org.librefit.ui.components.modalBottomSheets.InfoModalBottomSheet
 import org.librefit.ui.models.UiWorkout
+import org.librefit.ui.models.moveRoutine
 import org.librefit.ui.theme.LibreFitTheme
 import org.librefit.util.Formatter
+import sh.calvin.reorderable.ReorderableItem
+import sh.calvin.reorderable.rememberReorderableLazyListState
 import kotlin.random.Random
 
 @OptIn(ExperimentalSharedTransitionApi::class)
@@ -128,8 +134,6 @@ fun SharedTransitionScope.HomeScreen(
         }
     }
 
-    val showKeepAndroidOpen by viewModel.showKeepAndroidOpen.collectAsStateWithLifecycle()
-
     val requestPermissionNextTime by viewModel.requestPermissionNextTime.collectAsStateWithLifecycle()
 
     val routines by viewModel.routines.collectAsStateWithLifecycle()
@@ -162,8 +166,7 @@ fun SharedTransitionScope.HomeScreen(
         routines = routines,
         animatedVisibilityScope = animatedVisibilityScope,
         deleteRunningWorkout = viewModel::deleteRunningWorkout,
-        showKeepAndroidOpen = showKeepAndroidOpen,
-        onKeepAndroidOpenCheckboxChange = viewModel::saveKeepOpenAndroidCheckbox,
+        onReorderRoutines = viewModel::reorderRoutines,
         onImportRoutine = {
             importRoutineLauncher.launch(arrayOf(ROUTINE_FILE_MIME_TYPE, "*/*"))
         },
@@ -196,10 +199,9 @@ private fun SharedTransitionScope.HomeScreenContent(
     navController: NavHostController,
     routines: List<UiWorkout>,
     runningWorkout: UiWorkout?,
-    showKeepAndroidOpen: Boolean,
-    onKeepAndroidOpenCheckboxChange: (Boolean) -> Unit,
     animatedVisibilityScope: AnimatedVisibilityScope,
     deleteRunningWorkout: () -> Unit,
+    onReorderRoutines: (List<Long>) -> Unit,
     onImportRoutine: () -> Unit,
     onExportRoutine: (Long) -> Unit,
     navigateToRoutine: (Long) -> Unit
@@ -221,20 +223,6 @@ private fun SharedTransitionScope.HomeScreenContent(
         )
     }
 
-    val showModalBottomSheet = rememberSaveable {
-        mutableStateOf(showKeepAndroidOpen)
-    }
-
-    if(showModalBottomSheet.value) {
-        InfoModalBottomSheet(
-            infoMode = InfoMode.KEEP_ANDROID_OPEN,
-            keepAndroidCheckboxCheck = !showKeepAndroidOpen,
-            onKeepAndroidOpenCheckboxChange = onKeepAndroidOpenCheckboxChange
-        ) {
-            showModalBottomSheet.value = false
-        }
-    }
-
     // It is triggered when there's an unsaved, running workout but user taps a routine
     val routineIdToStart = remember { mutableStateOf<Long?>(null) }
 
@@ -254,7 +242,30 @@ private fun SharedTransitionScope.HomeScreenContent(
         )
     }
 
-    LibreFitLazyColumn {
+    // Local copy of the routines that follows the drag gestures, so the cards move smoothly while the
+    // new order reaches the database only once a gesture ends. It is replaced by the routines of the
+    // database whenever they change, which after a drag means the order that has just been saved
+    var orderedRoutines by remember { mutableStateOf(routines) }
+    LaunchedEffect(routines) {
+        orderedRoutines = routines
+    }
+
+    val lazyListState = rememberLazyListState()
+    val hapticFeedback = LocalHapticFeedback.current
+
+    // The items are looked up by key, as the routines come after the header items of the list. Moves
+    // over an item that is not a routine are ignored
+    val reorderableLazyListState = rememberReorderableLazyListState(lazyListState) { from, to ->
+        val reorderedRoutines = orderedRoutines.moveRoutine(fromKey = from.key, toKey = to.key)
+
+        if (reorderedRoutines !== orderedRoutines) {
+            orderedRoutines = reorderedRoutines
+
+            hapticFeedback.performHapticFeedback(HapticFeedbackType.SegmentFrequentTick)
+        }
+    }
+
+    LibreFitLazyColumn(lazyListState = lazyListState) {
         item {
             val infiniteTransition = rememberInfiniteTransition()
             val animatedColor by infiniteTransition.animateColor(
@@ -341,7 +352,7 @@ private fun SharedTransitionScope.HomeScreenContent(
             }
         }
 
-        if (routines.isEmpty()) {
+        if (orderedRoutines.isEmpty()) {
             item {
                 Row(
                     modifier = Modifier
@@ -370,76 +381,105 @@ private fun SharedTransitionScope.HomeScreenContent(
             }
         }
 
-        items(routines, key = { it.id }) { routine ->
-            ElevatedCard(
-                onClick = {
-                    navController.navigate(Route.InfoWorkoutScreen(workoutId = routine.id)) {
-                        launchSingleTop = true
-                    }
-                },
-                shape = MaterialTheme.shapes.extraLarge,
-                modifier = Modifier
-                    .sharedBounds(
-                        sharedContentState = rememberSharedContentState(routine.id),
-                        animatedVisibilityScope = animatedVisibilityScope
-                    )
-            ) {
-                Column(
+        items(orderedRoutines, key = { it.id }) { routine ->
+            ReorderableItem(reorderableLazyListState, key = routine.id) { isDragging ->
+                val shape = MaterialTheme.shapes.extraLarge
+                ElevatedCard(
+                    onClick = {
+                        navController.navigate(Route.InfoWorkoutScreen(workoutId = routine.id)) {
+                            launchSingleTop = true
+                        }
+                    },
+                    shape = shape,
                     modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(15.dp),
-                    verticalArrangement = Arrangement.spacedBy(10.dp)
-                ) {
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.SpaceBetween
-                    ) {
-                        Text(
-                            text = routine.title,
-                            style = MaterialTheme.typography.headlineMedium,
-                            maxLines = 1,
-                            overflow = TextOverflow.Ellipsis,
-                            fontWeight = FontWeight.SemiBold,
-                            modifier = Modifier.sharedElement(
-                                sharedContentState = rememberSharedContentState(
-                                    routine.id.toString() + routine.title
-                                ),
-                                animatedVisibilityScope = animatedVisibilityScope
-                            )
+                        .sharedBounds(
+                            sharedContentState = rememberSharedContentState(routine.id),
+                            animatedVisibilityScope = animatedVisibilityScope
                         )
-                        Row(verticalAlignment = Alignment.CenterVertically) {
-                            IconButton(
-                                onClick = { onExportRoutine(routine.id) }
-                            ) {
-                                Icon(
-                                    painter = painterResource(R.drawable.ic_exit_to_app),
-                                    contentDescription = stringResource(R.string.export_routine)
-                                )
-                            }
-                            IconButton(
-                                onClick = {
-                                    navController.navigate(Route.InfoWorkoutScreen(workoutId = routine.id)) {
-                                        launchSingleTop = true
-                                    }
+                        .then(
+                            if (isDragging) Modifier.shadow(
+                                10.dp,
+                                shape = shape
+                            ) else Modifier
+                        )
+                ) {
+                    Column(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(15.dp),
+                        verticalArrangement = Arrangement.spacedBy(10.dp)
+                    ) {
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.SpaceBetween
+                        ) {
+                            Text(
+                                text = routine.title,
+                                style = MaterialTheme.typography.headlineMedium,
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis,
+                                fontWeight = FontWeight.SemiBold,
+                                // A long title is ellipsized instead of pushing the actions away
+                                modifier = Modifier
+                                    .weight(1f, fill = false)
+                                    .sharedElement(
+                                        sharedContentState = rememberSharedContentState(
+                                            routine.id.toString() + routine.title
+                                        ),
+                                        animatedVisibilityScope = animatedVisibilityScope
+                                    )
+                            )
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                IconButton(
+                                    onClick = { onExportRoutine(routine.id) }
+                                ) {
+                                    Icon(
+                                        painter = painterResource(R.drawable.ic_exit_to_app),
+                                        contentDescription = stringResource(R.string.export_routine)
+                                    )
                                 }
-                            ) {
-                                Icon(
-                                    painter = painterResource(R.drawable.ic_info),
-                                    contentDescription = stringResource(R.string.info)
-                                )
+                                IconButton(
+                                    onClick = {
+                                        navController.navigate(Route.InfoWorkoutScreen(workoutId = routine.id)) {
+                                            launchSingleTop = true
+                                        }
+                                    }
+                                ) {
+                                    Icon(
+                                        painter = painterResource(R.drawable.ic_info),
+                                        contentDescription = stringResource(R.string.info)
+                                    )
+                                }
+                                IconButton(
+                                    modifier = Modifier.draggableHandle(
+                                        onDragStarted = {
+                                            hapticFeedback.performHapticFeedback(HapticFeedbackType.GestureThresholdActivate)
+                                        },
+                                        onDragStopped = {
+                                            onReorderRoutines(orderedRoutines.map { it.id })
+                                            hapticFeedback.performHapticFeedback(HapticFeedbackType.GestureEnd)
+                                        }
+                                    ),
+                                    onClick = {}
+                                ) {
+                                    Icon(
+                                        painter = painterResource(R.drawable.ic_drag_handle),
+                                        contentDescription = stringResource(R.string.reorder)
+                                    )
+                                }
                             }
                         }
-                    }
-                    LibreFitButton(
-                        text = stringResource(R.string.start_routine),
-                        icon = painterResource(R.drawable.ic_play_arrow),
-                        elevated = false
-                    ) {
-                        if (runningWorkout != null) {
-                            routineIdToStart.value = routine.id
-                        } else {
-                            navigateToRoutine(routine.id)
+                        LibreFitButton(
+                            text = stringResource(R.string.start_routine),
+                            icon = painterResource(R.drawable.ic_play_arrow),
+                            elevated = false
+                        ) {
+                            if (runningWorkout != null) {
+                                routineIdToStart.value = routine.id
+                            } else {
+                                navigateToRoutine(routine.id)
+                            }
                         }
                     }
                 }
@@ -465,13 +505,12 @@ fun HomeScreenPreview() {
             title = buildAnnotatedString {
                 GetAppNameInAnnotatedBuilder(MaterialTheme.typography.titleLargeEmphasized)
             },
-            actions = persistentListOf({ }, { }, { }),
+            actions = persistentListOf({ }, { }),
             actionsIcons = persistentListOf(
-                painterResource(R.drawable.ic_favorite),
                 painterResource(R.drawable.ic_info),
                 painterResource(R.drawable.ic_settings)
             ),
-            actionsElevated = persistentListOf(true, false, false),
+            actionsElevated = persistentListOf(false, false),
             fabAction = {},
             fabIcon = painterResource(R.drawable.ic_add),
             fabText = stringResource(R.string.create_routine),
@@ -524,8 +563,7 @@ fun HomeScreenPreview() {
                         HomeScreenContent(
                             navController = rememberNavController(),
                             runningWorkout = runningWorkout.value,
-                            showKeepAndroidOpen = false,
-                            onKeepAndroidOpenCheckboxChange = {},
+                            onReorderRoutines = { _ -> },
                             onImportRoutine = {},
                             onExportRoutine = { _ -> },
                             routines = listOf(

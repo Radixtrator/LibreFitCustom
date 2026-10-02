@@ -35,6 +35,10 @@ import kotlin.random.Random
  * @property completed The timestamp indicating when the workout was completed.
  * This is set to the current date and time by default, but it is updated when the workout is
  * finished in the [org.librefit.ui.screens.workout.WorkoutScreen].
+ * @property position The explicit position of a routine among the other routines. The user can
+ * change it by dragging the routines in [org.librefit.ui.screens.home.HomeScreen], and new routines
+ * are appended after the existing ones. Only routines are ordered by it: a workout started from a
+ * routine simply keeps the value of its routine.
  */
 @Entity(tableName = "workouts")
 @Serializable
@@ -49,5 +53,6 @@ data class Workout(
     @Serializable(with = LocalDateTimeSerializer::class)
     val created: LocalDateTime = LocalDateTime.now(),
     @Serializable(with = LocalDateTimeSerializer::class)
-    val completed: LocalDateTime = LocalDateTime.now()
+    val completed: LocalDateTime = LocalDateTime.now(),
+    val position: Int = 0
 )

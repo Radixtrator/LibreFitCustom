@@ -29,7 +29,7 @@ import javax.inject.Singleton
  *
  * @param workoutDao The [WorkoutDao] instance used to access workout data from the database.
  * @property completedWorkouts Refer to [WorkoutDao.getWorkoutsByStateAndOrderedByCompleted]
- * @property routines Refer to [WorkoutDao.getWorkoutsByState]
+ * @property routines Refer to [WorkoutDao.getWorkoutsByStateOrderedByPosition]
  * @property completedWorkoutsWithExercisesAndSets Refer to [WorkoutDao.getWorkoutsWithExercisesAndSetsByStateAndOrderedByCompleted]
  *
  */
@@ -60,7 +60,7 @@ class WorkoutRepository @Inject constructor(
     val completedWorkouts =
         workoutDao.getWorkoutsByStateAndOrderedByCompleted(WorkoutState.COMPLETED)
 
-    val routines = workoutDao.getWorkoutsByState(WorkoutState.ROUTINE)
+    val routines = workoutDao.getWorkoutsByStateOrderedByPosition(WorkoutState.ROUTINE)
 
     val completedWorkoutsWithExercisesAndSets =
         workoutDao
@@ -88,6 +88,14 @@ class WorkoutRepository @Inject constructor(
 
     suspend fun deleteWorkout(workout: Workout) {
         workoutDao.deleteWorkout(workout)
+    }
+
+    /**
+     * Saves the order of the routines chosen by the user, where [routineIds] lists the ids of the
+     * routines from the first to the last one. Refer to [WorkoutDao.updateWorkoutPositions]
+     */
+    suspend fun updateRoutinesOrder(routineIds: List<Long>) {
+        workoutDao.updateWorkoutPositions(routineIds)
     }
 
 

@@ -31,6 +31,36 @@ interface WorkoutDao {
     @Query("SELECT * FROM workouts WHERE state = :state ORDER BY created")
     fun getWorkoutsByState(state: WorkoutState): Flow<List<Workout>>
 
+    /**
+     * Returns a flow that emits a stream of [Workout]s filtered by [state] and ordered by
+     * [Workout.position], which is the order the user gives to the routines. Rows sharing the same
+     * position fall back to the creation order ([Workout.created], then [Workout.id]).
+     */
+    @Query("SELECT * FROM workouts WHERE state = :state ORDER BY position, created, id")
+    fun getWorkoutsByStateOrderedByPosition(state: WorkoutState): Flow<List<Workout>>
+
+    /**
+     * Returns the highest [Workout.position] among the workouts having the passed [state], or `null`
+     * when there is none.
+     */
+    @Query("SELECT MAX(position) FROM workouts WHERE state = :state")
+    suspend fun getMaxPositionByState(state: WorkoutState): Int?
+
+    @Query("UPDATE workouts SET position = :position WHERE id = :id")
+    suspend fun updateWorkoutPosition(id: Long, position: Int)
+
+    /**
+     * Stores the order of [workoutIds] in [Workout.position]: the first workout gets position 0, the
+     * second one position 1 and so on. Every row is updated in a single transaction, so observers
+     * never see a partially reordered list.
+     */
+    @Transaction
+    suspend fun updateWorkoutPositions(workoutIds: List<Long>) {
+        workoutIds.forEachIndexed { index, id ->
+            updateWorkoutPosition(id = id, position = index)
+        }
+    }
+
     @Transaction
     @Query("SELECT * FROM workouts WHERE state = :state ORDER BY created")
     fun getWorkoutsWithExercisesAndSetsByState(state: WorkoutState): Flow<List<WorkoutWithExercisesAndSets>>
@@ -122,6 +152,8 @@ interface WorkoutDao {
      *
      * The function performs the following steps:
      * 1. If the workout is new, it saves the workout with the current timestamp if not it updates the existing workout.
+     *    A new routine is also appended after the existing ones by giving it the next free [Workout.position],
+     *    while an updated workout keeps the position it is passed with.
      * 3. It retrieves all exercises associated with the workout from the database.
      * 4. It deletes any exercises that are in the database but not in the provided [ExerciseWithSets] list.
      * 5. For each exercise in [workoutWithExercisesAndSets]:
@@ -144,7 +176,11 @@ interface WorkoutDao {
         val workoutId = if (workout.id == 0L) {
             addWorkout(
                 workout = when (workout.state) {
-                    WorkoutState.ROUTINE -> workout.copy(completed = LocalDateTime.now())
+                    WorkoutState.ROUTINE -> workout.copy(
+                        completed = LocalDateTime.now(),
+                        position = (getMaxPositionByState(WorkoutState.ROUTINE) ?: -1) + 1
+                    )
+
                     else -> workout.copy(created = LocalDateTime.now())
                 }
             )

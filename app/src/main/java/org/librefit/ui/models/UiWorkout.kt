@@ -28,5 +28,26 @@ data class UiWorkout(
     val state: WorkoutState = WorkoutState.COMPLETED,
     val timeElapsed: Int = 0,
     val created: LocalDateTime = LocalDateTime.now(),
-    val completed: LocalDateTime = LocalDateTime.now()
+    val completed: LocalDateTime = LocalDateTime.now(),
+    val position: Int = 0
 )
+
+/**
+ * Returns a copy of this list of routines where the routine with the id [fromKey] takes the place of
+ * the routine with the id [toKey], with every [UiWorkout.position] rewritten to match the new order.
+ *
+ * The keys are the ones of the lazy list items in [org.librefit.ui.screens.home.HomeScreen], which
+ * are the routine ids. The list is returned unchanged when the keys are the same or when one of
+ * them is not a routine of the list, e.g. when a routine is dragged over the header of the screen.
+ */
+fun List<UiWorkout>.moveRoutine(fromKey: Any, toKey: Any): List<UiWorkout> {
+    val fromIndex = indexOfFirst { it.id == fromKey }
+    val toIndex = indexOfFirst { it.id == toKey }
+    if (fromIndex == -1 || toIndex == -1 || fromIndex == toIndex) return this
+
+    return toMutableList()
+        .apply {
+            add(toIndex, removeAt(fromIndex))
+        }
+        .mapIndexed { index, routine -> routine.copy(position = index) }
+}

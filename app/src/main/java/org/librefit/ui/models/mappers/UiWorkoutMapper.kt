@@ -20,7 +20,8 @@ fun Workout.toUi(): UiWorkout {
         state = this.state,
         timeElapsed = this.timeElapsed,
         created = this.created,
-        completed = this.completed
+        completed = this.completed,
+        position = this.position
     )
 }
 
@@ -33,6 +34,7 @@ fun UiWorkout.toEntity(): Workout {
         state = this.state,
         timeElapsed = this.timeElapsed,
         created = this.created,
-        completed = this.completed
+        completed = this.completed,
+        position = this.position
     )
 }

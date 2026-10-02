@@ -28,7 +28,7 @@ import org.librefit.db.entity.Workout
 
 @Database(
     entities = [Workout::class, Exercise::class, Set::class, Measurement::class, ExerciseDC::class],
-    version = 6,
+    version = 7,
     exportSchema = true,
     autoMigrations = [
         AutoMigration(from = 1, to = 2),
@@ -111,6 +111,35 @@ abstract class AppDatabase : RoomDatabase() {
                     """
                     ALTER TABLE sets
                     ADD COLUMN targetReps INTEGER NOT NULL DEFAULT 0
+                    """.trimIndent()
+                )
+            }
+        }
+
+        val MIGRATION_6_7 = object : Migration(6, 7) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL(
+                    """
+                    ALTER TABLE workouts
+                    ADD COLUMN position INTEGER NOT NULL DEFAULT 0
+                    """.trimIndent()
+                )
+                // Existing routines get the positions 0..n-1 in the order they have been shown so
+                // far (creation date, then id), so nothing moves after the upgrade. The state is
+                // stored as the name of the enum constant
+                db.execSQL(
+                    """
+                    UPDATE workouts
+                    SET position = (
+                        SELECT COUNT(*)
+                        FROM workouts AS previous
+                        WHERE previous.state = 'ROUTINE'
+                          AND (
+                            previous.created < workouts.created
+                            OR (previous.created = workouts.created AND previous.id < workouts.id)
+                          )
+                    )
+                    WHERE state = 'ROUTINE'
                     """.trimIndent()
                 )
             }

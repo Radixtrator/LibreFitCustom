@@ -53,14 +53,19 @@ class HomeScreenViewModel @Inject constructor(
             initialValue = null
         )
 
-    val showKeepAndroidOpen = userPreferences.showKeepAndroidOpen
+    /**
+     * Persists the order the user gave to the routines by dragging them in [HomeScreen].
+     * [routineIds] lists the ids of every routine from the first to the last one. Nothing is
+     * written when the order is the one already shown, e.g. when a routine is dropped where it was
+     * picked up.
+     */
+    fun reorderRoutines(routineIds: List<Long>) {
+        if (routineIds == routines.value.map { it.id }) return
 
-    fun saveKeepOpenAndroidCheckbox(showAgain : Boolean) {
         viewModelScope.launch {
-            userPreferences.saveShowKeepAndroidOpen(!showAgain)
+            workoutRepository.updateRoutinesOrder(routineIds)
         }
     }
-
 
     fun deleteRunningWorkout() {
         viewModelScope.launch {
@@ -92,6 +97,8 @@ class HomeScreenViewModel @Inject constructor(
             val payload = Json { ignoreUnknownKeys = true }
                 .decodeFromString(RoutineFile.serializer(), text)
 
+            // Being a new routine, it is appended after the existing ones when it is saved, see
+            // WorkoutDao.addWorkoutWithExercisesAndSets
             val importedWorkout = WorkoutWithExercisesAndSets(
                 workout = payload.workout.copy(
                     id = 0,
