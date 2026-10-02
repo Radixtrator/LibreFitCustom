@@ -74,16 +74,14 @@ fun SharedTransitionScope.MainScreen(
             GetAppNameInAnnotatedBuilder(MaterialTheme.typography.titleLargeEmphasized)
         },
         actions = persistentListOf(
-            { navController.navigate(Route.SupportScreen()) { launchSingleTop = true } },
             { navController.navigate(Route.AboutScreen) { launchSingleTop = true } },
             { navController.navigate(Route.SettingsScreen) { launchSingleTop = true } }
         ),
         actionsIcons = persistentListOf(
-            painterResource(R.drawable.ic_favorite),
             painterResource(R.drawable.ic_info),
             painterResource(R.drawable.ic_settings)
         ),
-        actionsElevated = persistentListOf(true, false, false),
+        actionsElevated = persistentListOf(false, false),
         fabAction = if (pagerState.currentPage == MainScreenPages.HOME.ordinal) fabAction else null,
         fabIcon = painterResource(R.drawable.ic_add),
         fabDescription = stringResource(R.string.create_routine),
