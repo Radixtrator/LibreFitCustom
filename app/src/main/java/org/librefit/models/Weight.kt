@@ -153,6 +153,9 @@ value class Weight private constructor(
     /**
      * Moves this load one step [up] or down, as the -/+ buttons next to a set do.
      *
+     * When [step] is above zero, typically the [org.librefit.db.entity.Exercise.weightIncrement] of
+     * the exercise, the load moves by it on the grid of [unitSystem] (refer to [stepInUnit]).
+     * Otherwise it moves by the default step of [unitSystem]:
      * - [UnitSystem.METRIC]: by [METRIC_LOAD_STEP_IN_POUNDS] converted to kilograms (about
      * 1.134 kg), exactly as it has always been, refer to [stepBy].
      * - [UnitSystem.IMPERIAL]: by [IMPERIAL_LOAD_STEP_IN_POUNDS], i.e. a 2.5 lb plate on each side
@@ -161,13 +164,18 @@ value class Weight private constructor(
      *
      * The result is never negative.
      */
-    fun stepLoad(up: Boolean, unitSystem: UnitSystem): Weight = when (unitSystem) {
-        UnitSystem.METRIC -> stepBy(
+    fun stepLoad(up: Boolean, unitSystem: UnitSystem, step: Weight = zero()): Weight = when {
+        step > zero() -> {
+            val delta = step.roundedValue(unitSystem)
+            stepInUnit(delta = if (up) delta else -delta, unitSystem = unitSystem)
+        }
+
+        unitSystem == UnitSystem.METRIC -> stepBy(
             deltaInPounds = if (up) METRIC_LOAD_STEP_IN_POUNDS else -METRIC_LOAD_STEP_IN_POUNDS,
             unitSystem = unitSystem
         )
 
-        UnitSystem.IMPERIAL -> stepInUnit(
+        else -> stepInUnit(
             delta = if (up) IMPERIAL_LOAD_STEP_IN_POUNDS else -IMPERIAL_LOAD_STEP_IN_POUNDS,
             unitSystem = unitSystem
         )

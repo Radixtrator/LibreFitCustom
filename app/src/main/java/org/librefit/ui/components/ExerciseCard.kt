@@ -838,6 +838,7 @@ fun SharedTransitionScope.ExerciseCard(
                                         previousSet = previousPerformances?.getOrNull(i),
                                         lastIndex = exerciseWithSets.sets.lastIndex,
                                         setMode = exerciseWithSets.exercise.setMode,
+                                        loadStep = exerciseWithSets.exercise.weightIncrement,
                                         isStopwatchRunning = idSetWithRunningStopwatch == null,
                                         isThisSetStopwatchRunning = idSetWithRunningStopwatch == set.id,
                                         workout = workout,
@@ -1259,6 +1260,7 @@ private fun Set(
     previousSet: PreviousPerformanceSet? = null,
     lastIndex: Int,
     setMode: SetMode,
+    loadStep: Weight,
     isStopwatchRunning: Boolean,
     isThisSetStopwatchRunning: Boolean,
     workout: Boolean,
@@ -1684,10 +1686,12 @@ private fun Set(
                         if (!useScrollWheelForInput) {
                             IconButton(
                                 onClick = {
+                                    // By the weight increase of the exercise, or by default
                                     // 5 lb, or about 1.134 kg as it has always been
                                     val newLoad = set.load.stepLoad(
                                         up = false,
-                                        unitSystem = unitSystem
+                                        unitSystem = unitSystem,
+                                        step = loadStep
                                     )
                                     updateSetLoad(newLoad, set.id)
                                 },
@@ -1754,7 +1758,8 @@ private fun Set(
                                 onClick = {
                                     val newLoad = set.load.stepLoad(
                                         up = true,
-                                        unitSystem = unitSystem
+                                        unitSystem = unitSystem,
+                                        step = loadStep
                                     )
                                     updateSetLoad(newLoad, set.id)
                                 },

@@ -168,6 +168,38 @@ class WeightTest {
     }
 
     @Test
+    fun `a load steps by the increment of its exercise when there is one`() {
+        val pounds = Weight.pounds(135.0)
+        val kilograms = Weight.kilograms(60.0)
+
+        assertThat(
+            pounds.stepLoad(up = true, unitSystem = UnitSystem.IMPERIAL, step = Weight.pounds(2.5))
+                .roundedValue(UnitSystem.IMPERIAL)
+        ).isEqualTo(137.5)
+        assertThat(
+            pounds.stepLoad(up = false, unitSystem = UnitSystem.IMPERIAL, step = Weight.pounds(2.5))
+                .roundedValue(UnitSystem.IMPERIAL)
+        ).isEqualTo(132.5)
+        assertThat(
+            kilograms.stepLoad(up = true, unitSystem = UnitSystem.METRIC, step = Weight.kilograms(1.25))
+                .roundedValue(UnitSystem.METRIC)
+        ).isEqualTo(61.25)
+        assertThat(
+            Weight.pounds(1.0)
+                .stepLoad(up = false, unitSystem = UnitSystem.IMPERIAL, step = Weight.pounds(2.5))
+        ).isEqualTo(Weight.zero())
+    }
+
+    @Test
+    fun `a load without an increment steps by the default step`() {
+        assertThat(
+            Weight.pounds(135.0)
+                .stepLoad(up = true, unitSystem = UnitSystem.IMPERIAL, step = Weight.zero())
+                .roundedValue(UnitSystem.IMPERIAL)
+        ).isEqualTo(140.0)
+    }
+
+    @Test
     fun `stepping a load down never goes below zero`() {
         assertThat(Weight.pounds(3.0).stepLoad(up = false, unitSystem = UnitSystem.IMPERIAL))
             .isEqualTo(Weight.zero())
