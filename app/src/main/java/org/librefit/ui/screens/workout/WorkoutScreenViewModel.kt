@@ -116,65 +116,69 @@ class WorkoutScreenViewModel(
     val exercises = _exercises.asStateFlow()
 
     val previousPerformances: StateFlow<List<List<PreviousPerformanceSet>>> =
-        combine(exercises, workout) { list, w ->
-            list.map { eWs ->
-                val list = workoutRepository.getCompletedWorkoutsWithExercisesWithIdExerciseDC(
-                    idExerciseDC = eWs.exerciseDC.id
-                ).firstOrNull()
-
-                // It tries to find in the completed workouts the previous performance of
-                // the same exercise and in the same routine. If there isn't a linked routine, it takes the
-                // latest workout with that exercise
-                val previousWorkout =
-                    list?.find { it.workout.routineId == w.routineId } ?: list?.firstOrNull()
-                val previousEWS =
-                    previousWorkout?.exercisesWithSets?.find { it.exerciseDC.id == eWs.exerciseDC.id }
-
-                // The load goes up only when the whole previous session of this exercise went well
-                val previousSessionSuccessful =
-                    WeightProgression.isSessionSuccessful(previousEWS?.sets.orEmpty())
-                val incrementMultiplier =
-                    WeightProgression.incrementMultiplier(previousEWS?.sets.orEmpty())
-                List(eWs.sets.size) { index ->
-                    val previousSet = previousEWS?.sets?.getOrNull(index)
-                    val reps = previousSet?.reps ?: 0
-                    val load = previousSet?.load ?: Weight.zero()
-                    val time = previousSet?.elapsedTime ?: 0
-                    val suggestedLoad = previousSet?.let {
-                        WeightProgression.suggestedLoad(
-                            previousLoad = load,
-                            increment = eWs.exercise.weightIncrement,
-                            sessionSuccessful = previousSessionSuccessful,
-                            incrementMultiplier = incrementMultiplier,
-                            decreasing = eWs.exercise.setMode == SetMode.ASSISTED_BODYWEIGHT
-                        )
-                    }
-
-                    when (eWs.exercise.setMode) {
-                        SetMode.LOAD -> PreviousPerformanceSet(
-                            load = load,
-                            reps = reps,
-                            suggestedLoad = suggestedLoad
-                        )
-
-                        SetMode.BODYWEIGHT -> PreviousPerformanceSet(reps = reps)
-                        SetMode.BODYWEIGHT_WITH_LOAD, SetMode.ASSISTED_BODYWEIGHT -> PreviousPerformanceSet(
-                            load = load,
-                            reps = reps,
-                            suggestedLoad = suggestedLoad
-                        )
-
-                        SetMode.DURATION -> PreviousPerformanceSet(time = time)
-                    }
-
-                }
-            }
-        }
+        combine(exercises, workout) { list, w -> previousPerformancesOf(list, w) }
             .stateIn(
                 scope = viewModelScope,
                 started = SharingStarted.WhileSubscribed(5000),
                 initialValue = emptyList()
             )
+
+    private suspend fun previousPerformancesOf(
+        list: List<UiExerciseWithSets>,
+        w: UiWorkout
+    ): List<List<PreviousPerformanceSet>> =
+        list.map { eWs ->
+            val list = workoutRepository.getCompletedWorkoutsWithExercisesWithIdExerciseDC(
+                idExerciseDC = eWs.exerciseDC.id
+            ).firstOrNull()
+
+            // It tries to find in the completed workouts the previous performance of
+            // the same exercise and in the same routine. If there isn't a linked routine, it takes the
+            // latest workout with that exercise
+            val previousWorkout =
+                list?.find { it.workout.routineId == w.routineId } ?: list?.firstOrNull()
+            val previousEWS =
+                previousWorkout?.exercisesWithSets?.find { it.exerciseDC.id == eWs.exerciseDC.id }
+
+            // The load goes up only when the whole previous session of this exercise went well
+            val previousSessionSuccessful =
+                WeightProgression.isSessionSuccessful(previousEWS?.sets.orEmpty())
+            val incrementMultiplier =
+                WeightProgression.incrementMultiplier(previousEWS?.sets.orEmpty())
+            List(eWs.sets.size) { index ->
+                val previousSet = previousEWS?.sets?.getOrNull(index)
+                val reps = previousSet?.reps ?: 0
+                val load = previousSet?.load ?: Weight.zero()
+                val time = previousSet?.elapsedTime ?: 0
+                val suggestedLoad = previousSet?.let {
+                    WeightProgression.suggestedLoad(
+                        previousLoad = load,
+                        increment = eWs.exercise.weightIncrement,
+                        sessionSuccessful = previousSessionSuccessful,
+                        incrementMultiplier = incrementMultiplier,
+                        decreasing = eWs.exercise.setMode == SetMode.ASSISTED_BODYWEIGHT
+                    )
+                }
+
+                when (eWs.exercise.setMode) {
+                    SetMode.LOAD -> PreviousPerformanceSet(
+                        load = load,
+                        reps = reps,
+                        suggestedLoad = suggestedLoad
+                    )
+
+                    SetMode.BODYWEIGHT -> PreviousPerformanceSet(reps = reps)
+                    SetMode.BODYWEIGHT_WITH_LOAD, SetMode.ASSISTED_BODYWEIGHT -> PreviousPerformanceSet(
+                        load = load,
+                        reps = reps,
+                        suggestedLoad = suggestedLoad
+                    )
+
+                    SetMode.DURATION -> PreviousPerformanceSet(time = time)
+                }
+
+            }
+        }
 
     fun applyPreviousSetPerformance(setId: Long) {
         exercises.value.forEachIndexed { index, eWs ->
@@ -211,6 +215,24 @@ class WorkoutScreenViewModel(
         }
     }
 
+    /**
+     * Sets the load of every set to the one suggested by [WeightProgression], wherever the
+     * previous session of the exercise earned an increase.
+     */
+    private suspend fun applySuggestedLoads() {
+        val suggestions = previousPerformancesOf(exercises.value, workout.value)
+        _exercises.update { exercises ->
+            exercises.mapIndexed { i, eWs ->
+                eWs.copy(
+                    sets = eWs.sets.mapIndexed { j, set ->
+                        suggestions.getOrNull(i)?.getOrNull(j)?.suggestedLoad
+                            ?.let { set.copy(load = it) } ?: set
+                    }.toImmutableList()
+                )
+            }
+        }
+    }
+
     // A Job to hold the running set's stopwatch coroutine
     private var stopwatchJob: Job? = null
 
@@ -232,6 +254,12 @@ class WorkoutScreenViewModel(
 
                 _exercises.update {
                     workoutWithExercisesAndSets.exercisesWithSets
+                }
+
+                // A fresh workout starts from the progressed loads. A resumed one already holds
+                // whatever the user settled on, so it is left as it is
+                if (workoutWithExercisesAndSets.workout.state != WorkoutState.RUNNING) {
+                    applySuggestedLoads()
                 }
 
                 _idsOfSetsWithStopwatchNotStartedAtLeastOnce.update {
