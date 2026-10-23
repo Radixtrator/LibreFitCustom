@@ -37,7 +37,6 @@ import androidx.compose.material3.CircularWavyProgressIndicator
 import androidx.compose.material3.ElevatedCard
 import androidx.compose.material3.ElevatedToggleButton
 import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
-import androidx.compose.material3.FloatingToolbarDefaults
 import androidx.compose.material3.FloatingToolbarDefaults.ScreenOffset
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.HorizontalFloatingToolbar
@@ -117,7 +116,6 @@ import sh.calvin.reorderable.rememberReorderableLazyListState
 fun SharedTransitionScope.WorkoutScreen(
     onNavigateBack: () -> Unit,
     onNavigateToBeforeSavingScreen: (Long) -> Unit,
-    onNavigateToAddExercises: () -> Unit,
     onNavigateToInfoExercise: (Long, String) -> Unit,
     sharedViewModel: SharedViewModel,
     animatedVisibilityScope: AnimatedVisibilityScope,
@@ -246,8 +244,7 @@ fun SharedTransitionScope.WorkoutScreen(
                         // The header always comes first in the list, sticky or not
                         coroutineScope.launch { lazyListState.animateScrollToItem(index + 1) }
                     }
-                },
-                fabAction = onNavigateToAddExercises
+                }
             )
             WorkoutScreenContent(
                 lazyListState = lazyListState,
@@ -544,124 +541,117 @@ private fun BoxScope.FloatingWorkoutActionBar(
     modifyRestTime: (Boolean) -> Unit,
     nextExerciseName: String?,
     nextSetNumber: Int,
-    goToNextExercise: () -> Unit,
-    fabAction: () -> Unit
+    goToNextExercise: () -> Unit
 ) {
-    HorizontalFloatingToolbar(
-        // The rest comes first. Without one, the bar points to the next exercise of a superset
-        expanded = restTime != 0 || nextExerciseName != null,
-        floatingActionButton = {
-            FloatingToolbarDefaults.StandardFloatingActionButton(
-                onClick = fabAction
-            ) {
-                Icon(
-                    painter = painterResource(R.drawable.ic_add),
-                    contentDescription = stringResource(R.string.add_exercise)
-                )
-            }
-        },
+    // The rest comes first. Without one, the bar points to the next exercise of a superset
+    AnimatedVisibility(
+        visible = restTime != 0 || nextExerciseName != null,
         modifier = Modifier
             .align(Alignment.BottomEnd)
             .offset(y = -ScreenOffset, x = -ScreenOffset)
             .zIndex(1f),
     ) {
-        val animatedTimerProgress = animateFloatAsState(
-            targetValue = restTimerProgress,
-            animationSpec = WavyProgressIndicatorDefaults.ProgressAnimationSpec,
-            label = "progressTimerAnimation"
-        )
-        if (restTime != 0 || nextExerciseName == null) {
-            //Rest timer
-            Row(
-                horizontalArrangement = Arrangement.spacedBy(10.dp),
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                val iconSize = remember { 48.dp }
-                Text(
-                    modifier = Modifier.padding(start = 10.dp),
-                    text = stringResource(R.string.rest)
-                )
-                Box(
-                    contentAlignment = Alignment.Center
+        HorizontalFloatingToolbar(
+            expanded = true,
+        ) {
+            val animatedTimerProgress = animateFloatAsState(
+                targetValue = restTimerProgress,
+                animationSpec = WavyProgressIndicatorDefaults.ProgressAnimationSpec,
+                label = "progressTimerAnimation"
+            )
+            if (restTime != 0 || nextExerciseName == null) {
+                //Rest timer
+                Row(
+                    horizontalArrangement = Arrangement.spacedBy(10.dp),
+                    verticalAlignment = Alignment.CenterVertically
                 ) {
-                    CircularWavyProgressIndicator(
-                        modifier = Modifier.size(iconSize),
-                        progress = { animatedTimerProgress.value },
+                    val iconSize = remember { 48.dp }
+                    Text(
+                        modifier = Modifier.padding(start = 10.dp),
+                        text = stringResource(R.string.rest)
                     )
-                    Text("$restTime")
-                }
+                    Box(
+                        contentAlignment = Alignment.Center
+                    ) {
+                        CircularWavyProgressIndicator(
+                            modifier = Modifier.size(iconSize),
+                            progress = { animatedTimerProgress.value },
+                        )
+                        Text("$restTime")
+                    }
 
-                val interactionSources = remember { List(2) { MutableInteractionSource() } }
-                ButtonGroup(
-                    overflowIndicator = {}
+                    val interactionSources = remember { List(2) { MutableInteractionSource() } }
+                    ButtonGroup(
+                        overflowIndicator = {}
+                    ) {
+                        customItem(
+                            buttonGroupContent = {
+                                IconButton(
+                                    modifier = Modifier.animateWidth(interactionSources[0]),
+                                    onClick = { modifyRestTime(false) },
+                                    enabled = restTime > 0,
+                                    shapes = IconButtonDefaults.shapes(),
+                                    interactionSource = interactionSources[0]
+                                ) {
+                                    Icon(
+                                        painter = painterResource(R.drawable.ic_replay_10),
+                                        contentDescription = stringResource(R.string.add_ten_seconds),
+                                        modifier = Modifier.size(iconSize)
+                                    )
+                                }
+                            },
+                            menuContent = {}
+                        )
+                        customItem(
+                            buttonGroupContent = {
+                                IconButton(
+                                    modifier = Modifier.animateWidth(interactionSources[1]),
+                                    onClick = { modifyRestTime(true) },
+                                    enabled = restTime > 0,
+                                    shapes = IconButtonDefaults.shapes(),
+                                    interactionSource = interactionSources[1]
+                                ) {
+                                    Icon(
+                                        painter = painterResource(R.drawable.ic_forward_10),
+                                        contentDescription = stringResource(R.string.reduce_ten_seconds),
+                                        modifier = Modifier.size(iconSize)
+                                    )
+                                }
+                            },
+                            menuContent = {}
+                        )
+                    }
+
+
+                }
+            } else {
+                // Within a round of a superset there is no rest, the next exercise follows at once
+                Row(
+                    modifier = Modifier
+                        .clip(CircleShape)
+                        .clickable(onClick = goToNextExercise)
+                        .padding(horizontal = 10.dp, vertical = 6.dp),
+                    horizontalArrangement = Arrangement.spacedBy(10.dp),
+                    verticalAlignment = Alignment.CenterVertically
                 ) {
-                    customItem(
-                        buttonGroupContent = {
-                            IconButton(
-                                modifier = Modifier.animateWidth(interactionSources[0]),
-                                onClick = { modifyRestTime(false) },
-                                enabled = restTime > 0,
-                                shapes = IconButtonDefaults.shapes(),
-                                interactionSource = interactionSources[0]
-                            ) {
-                                Icon(
-                                    painter = painterResource(R.drawable.ic_replay_10),
-                                    contentDescription = stringResource(R.string.add_ten_seconds),
-                                    modifier = Modifier.size(iconSize)
-                                )
-                            }
-                        },
-                        menuContent = {}
-                    )
-                    customItem(
-                        buttonGroupContent = {
-                            IconButton(
-                                modifier = Modifier.animateWidth(interactionSources[1]),
-                                onClick = { modifyRestTime(true) },
-                                enabled = restTime > 0,
-                                shapes = IconButtonDefaults.shapes(),
-                                interactionSource = interactionSources[1]
-                            ) {
-                                Icon(
-                                    painter = painterResource(R.drawable.ic_forward_10),
-                                    contentDescription = stringResource(R.string.reduce_ten_seconds),
-                                    modifier = Modifier.size(iconSize)
-                                )
-                            }
-                        },
-                        menuContent = {}
+                    Column(modifier = Modifier.widthIn(max = 220.dp)) {
+                        Text(
+                            text = stringResource(R.string.next_in_superset, nextSetNumber),
+                            style = MaterialTheme.typography.labelMedium,
+                            color = MaterialTheme.colorScheme.primary
+                        )
+                        Text(
+                            text = nextExerciseName,
+                            style = MaterialTheme.typography.titleMedium,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis
+                        )
+                    }
+                    Icon(
+                        painter = painterResource(R.drawable.ic_arrow_forward),
+                        contentDescription = stringResource(R.string.go_to_next_exercise)
                     )
                 }
-
-
-            }
-        } else {
-            // Within a round of a superset there is no rest, the next exercise follows at once
-            Row(
-                modifier = Modifier
-                    .clip(CircleShape)
-                    .clickable(onClick = goToNextExercise)
-                    .padding(horizontal = 10.dp, vertical = 6.dp),
-                horizontalArrangement = Arrangement.spacedBy(10.dp),
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Column(modifier = Modifier.widthIn(max = 220.dp)) {
-                    Text(
-                        text = stringResource(R.string.next_in_superset, nextSetNumber),
-                        style = MaterialTheme.typography.labelMedium,
-                        color = MaterialTheme.colorScheme.primary
-                    )
-                    Text(
-                        text = nextExerciseName,
-                        style = MaterialTheme.typography.titleMedium,
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis
-                    )
-                }
-                Icon(
-                    painter = painterResource(R.drawable.ic_arrow_forward),
-                    contentDescription = stringResource(R.string.go_to_next_exercise)
-                )
             }
         }
     }
@@ -807,8 +797,7 @@ private fun WorkoutScreenPreview() {
                             modifyRestTime = {},
                             nextExerciseName = "Side Lateral Raise",
                             nextSetNumber = 2,
-                            goToNextExercise = {},
-                            fabAction = {}
+                            goToNextExercise = {}
                         )
                     }
                 }

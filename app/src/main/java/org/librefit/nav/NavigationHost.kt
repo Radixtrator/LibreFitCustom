@@ -421,9 +421,6 @@ fun NavigationHost(
                             onNavigateToBeforeSavingScreen = dropUnlessResumedNav { workoutId ->
                                 backStack.navigate(Route.BeforeSavingScreen(workoutId))
                             },
-                            onNavigateToAddExercises = dropUnlessResumed {
-                                backStack.navigate(Route.ExercisesScreen(addExercises = true))
-                            },
                             onNavigateToInfoExercise = dropUnlessResumedNav { id, exerciseDCid ->
                                 backStack.navigate(Route.InfoExerciseScreen(id, exerciseDCid))
                             },
