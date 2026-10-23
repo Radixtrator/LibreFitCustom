@@ -14,8 +14,16 @@ import android.os.Bundle
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.appcompat.app.AppCompatActivity
+import androidx.compose.foundation.layout.ExperimentalLayoutApi
+import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.isImeVisible
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
+import androidx.compose.ui.platform.LocalFocusManager
 import androidx.core.splashscreen.SplashScreen.Companion.installSplashScreen
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import org.koin.android.ext.android.inject
@@ -58,6 +66,8 @@ class MainActivity : AppCompatActivity() {
         initialDeepLink = intent.action.deepLinkKeyForAction()
 
         setContent {
+            ClearFocusOnImeHidden()
+
             val theme by userPreferences.themeMode.collectAsStateWithLifecycle()
             val dynamicColor by userPreferences.materialMode.collectAsStateWithLifecycle()
 
@@ -71,6 +81,22 @@ class MainActivity : AppCompatActivity() {
                     onPendingDeepLinkConsumed = { pendingDeepLink.value = null },
                 )
             }
+        }
+    }
+
+    /**
+     * Dismissing the keyboard with Back leaves the text field focused, with its cursor still
+     * blinking. Drop the focus as soon as the keyboard goes away, however it was closed.
+     */
+    @OptIn(ExperimentalLayoutApi::class)
+    @Composable
+    private fun ClearFocusOnImeHidden() {
+        val focusManager = LocalFocusManager.current
+        val isImeVisible = WindowInsets.isImeVisible
+        var wasImeVisible by remember { mutableStateOf(false) }
+        LaunchedEffect(isImeVisible) {
+            if (wasImeVisible && !isImeVisible) focusManager.clearFocus()
+            wasImeVisible = isImeVisible
         }
     }
 
