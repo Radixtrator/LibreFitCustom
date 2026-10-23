@@ -41,18 +41,18 @@ class WeightFormatterTest {
     }
 
     @Test
-    fun `doubleValue shows pounds as whole numbers and kilograms with two decimals`() {
+    fun `doubleValue shows pounds with one decimal and kilograms with two`() {
         assertThat(Weight.pounds(150.0).doubleValue(UnitSystem.IMPERIAL)).isEqualTo(150.0)
-        assertThat(Weight.pounds(137.5).doubleValue(UnitSystem.IMPERIAL)).isEqualTo(138.0)
+        assertThat(Weight.pounds(137.5).doubleValue(UnitSystem.IMPERIAL)).isEqualTo(137.5)
         assertThat(Weight.kilograms(61.25).doubleValue(UnitSystem.METRIC)).isEqualTo(61.25)
         assertThat(Weight.kilograms(2.3).doubleValue(UnitSystem.METRIC)).isEqualTo(2.3)
     }
 
     @Test
-    fun `input text has no decimals in pounds`() {
+    fun `input text has no trailing zeros in pounds`() {
         assertThat(Weight.pounds(135.0).toInputText(UnitSystem.IMPERIAL)).isEqualTo("135")
         assertThat(Weight.pounds(150.0).toInputText(UnitSystem.IMPERIAL)).isEqualTo("150")
-        assertThat(Weight.pounds(137.5).toInputText(UnitSystem.IMPERIAL)).isEqualTo("138")
+        assertThat(Weight.pounds(137.5).toInputText(UnitSystem.IMPERIAL)).isEqualTo("137.5")
         assertThat(Weight.pounds(1234567.0).toInputText(UnitSystem.IMPERIAL)).isEqualTo("1234567")
         assertThat(Weight.zero().toInputText(UnitSystem.IMPERIAL)).isEqualTo("0")
     }
@@ -67,9 +67,12 @@ class WeightFormatterTest {
     }
 
     @Test
-    fun `pound input keeps whole numbers only`() {
-        assertThat(normalizeWeightInput("135.5", UnitSystem.IMPERIAL)).isEqualTo("135")
-        assertThat(normalizeWeightInput("1,5", UnitSystem.IMPERIAL)).isEqualTo("1")
+    fun `pound input keeps one decimal`() {
+        assertThat(normalizeWeightInput("135.5", UnitSystem.IMPERIAL)).isEqualTo("135.5")
+        assertThat(normalizeWeightInput("135.25", UnitSystem.IMPERIAL)).isEqualTo("135.2")
+        assertThat(normalizeWeightInput("135.", UnitSystem.IMPERIAL)).isEqualTo("135.")
+        assertThat(normalizeWeightInput(".5", UnitSystem.IMPERIAL)).isEqualTo("0.5")
+        assertThat(normalizeWeightInput("1,5", UnitSystem.IMPERIAL)).isEqualTo("1.5")
         assertThat(normalizeWeightInput("1a3", UnitSystem.IMPERIAL)).isEqualTo("13")
         assertThat(normalizeWeightInput("1350", UnitSystem.IMPERIAL)).isEqualTo("135")
         assertThat(normalizeWeightInput(".", UnitSystem.IMPERIAL)).isEmpty()
@@ -92,8 +95,8 @@ class WeightFormatterTest {
     }
 
     @Test
-    fun `parsing pound input ignores decimals`() {
-        assertThat(parseWeightInput("135.7", UnitSystem.IMPERIAL)).isEqualTo(135.0)
+    fun `parsing pound input keeps one decimal`() {
+        assertThat(parseWeightInput("135.75", UnitSystem.IMPERIAL)).isEqualTo(135.7)
         assertThat(parseWeightInput("0", UnitSystem.IMPERIAL)).isEqualTo(0.0)
         assertThat(parseWeightInput("", UnitSystem.IMPERIAL)).isNull()
     }
@@ -108,7 +111,8 @@ class WeightFormatterTest {
     @Test
     fun `a weight is represented by its text at the displayed precision`() {
         assertThat(Weight.pounds(150.0).isRepresentedBy("150", UnitSystem.IMPERIAL)).isTrue()
-        assertThat(Weight.pounds(137.5).isRepresentedBy("138", UnitSystem.IMPERIAL)).isTrue()
+        assertThat(Weight.pounds(137.5).isRepresentedBy("137.5", UnitSystem.IMPERIAL)).isTrue()
+        assertThat(Weight.pounds(137.5).isRepresentedBy("137.", UnitSystem.IMPERIAL)).isFalse()
         assertThat(Weight.kilograms(61.0).isRepresentedBy("61.", UnitSystem.METRIC)).isTrue()
         assertThat(Weight.kilograms(61.2).isRepresentedBy("61.20", UnitSystem.METRIC)).isTrue()
         assertThat(Weight.pounds(140.0).isRepresentedBy("135", UnitSystem.IMPERIAL)).isFalse()
@@ -146,12 +150,11 @@ class WeightFormatterTest {
     }
 
     @Test
-    fun `typing a separator in pounds is ignored`() {
+    fun `typing a half pound keeps it`() {
         val (field, weight) = type("135.5", UnitSystem.IMPERIAL)
 
-        // The separator is dropped, and the last digit does not fit in the three allowed
-        assertThat(field).isEqualTo("135")
-        assertThat(weight.doubleValue(UnitSystem.IMPERIAL)).isEqualTo(135.0)
+        assertThat(field).isEqualTo("135.5")
+        assertThat(weight.doubleValue(UnitSystem.IMPERIAL)).isEqualTo(135.5)
     }
 
     @Test
@@ -164,8 +167,8 @@ class WeightFormatterTest {
     }
 
     @Test
-    fun `pounds are typed on a keyboard without decimal separator`() {
-        assertThat(weightKeyboardType(UnitSystem.IMPERIAL)).isEqualTo(KeyboardType.Number)
+    fun `pounds are typed on a keyboard with a decimal separator`() {
+        assertThat(weightKeyboardType(UnitSystem.IMPERIAL)).isEqualTo(KeyboardType.Decimal)
         assertThat(weightKeyboardType(UnitSystem.METRIC)).isEqualTo(KeyboardType.Decimal)
     }
 }

@@ -377,8 +377,7 @@ private fun InputPickersRow(
                     onNumberPickerScroll = onNumberPickerScroll,
                     textStyle = textStyle
                 )
-                // Pounds are picked as whole numbers, so there is no decimal part to offer, refer
-                // to InputModalBottomSheetState.Weight.fromWeight
+                // Refer to InputModalBottomSheetState.Weight.fromWeight for the decimal part offered
                 if (state.hasDecimalPart) {
                     Text(
                         text = ".",

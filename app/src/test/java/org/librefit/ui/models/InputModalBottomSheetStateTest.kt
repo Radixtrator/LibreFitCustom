@@ -32,26 +32,40 @@ class InputModalBottomSheetStateTest {
     }
 
     @Test
-    fun `the wheel has no decimal part in pounds`() {
+    fun `the wheel picks half pounds`() {
         val state = InputModalBottomSheetState.Weight.fromWeight(
             weight = Weight.pounds(135.0),
             unitSystem = UnitSystem.IMPERIAL
         )
 
-        assertThat(state.hasDecimalPart).isFalse()
+        assertThat(state.hasDecimalPart).isTrue()
+        assertThat(state.decimalWeightRange).containsExactly(0, 5).inOrder()
         assertThat(state.totalWeight).isEqualTo(135.0)
         assertThat(state.toWeight(UnitSystem.IMPERIAL).toInputText(UnitSystem.IMPERIAL))
             .isEqualTo("135")
     }
 
     @Test
-    fun `a fractional pound opens the wheel on the rounded pound`() {
+    fun `a half pound opens the wheel on the half pound`() {
         val state = InputModalBottomSheetState.Weight.fromWeight(
             weight = Weight.pounds(137.5),
             unitSystem = UnitSystem.IMPERIAL
         )
 
-        assertThat(state.integerWeight).isEqualTo(138)
+        assertThat(state.integerWeight).isEqualTo(137)
+        assertThat(state.totalWeight).isEqualTo(137.5)
+    }
+
+    @Test
+    fun `other fractions of a pound open the wheel on the closest half pound`() {
+        fun opened(pounds: Double) = InputModalBottomSheetState.Weight.fromWeight(
+            weight = Weight.pounds(pounds),
+            unitSystem = UnitSystem.IMPERIAL
+        ).totalWeight
+
+        assertThat(opened(137.2)).isEqualTo(137.0)
+        assertThat(opened(137.3)).isEqualTo(137.5)
+        assertThat(opened(137.8)).isEqualTo(138.0)
     }
 
     @Test

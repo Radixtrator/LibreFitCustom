@@ -554,7 +554,7 @@ private fun SharedTransitionScope.HistoryPage(
                     BodyweightChart.MOST_REPS, BodyweightChart.SESSION_REPS, LoadChart.TOTAL_REPS,
                     WeightedBodyweightChart.TOTAL_REPS -> 2
                     TimeChart.BEST_TIME, TimeChart.TOTAL_TIME -> 0
-                    // Pounds are shown as whole numbers
+                    // Pounds are shown with one decimal at most
                     else -> weightDecimalCount(1)
                 },
                 suffix = when (exerciseChart) {

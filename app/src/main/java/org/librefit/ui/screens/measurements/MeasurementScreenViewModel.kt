@@ -116,7 +116,7 @@ class MeasurementScreenViewModel(
 
     /**
      * Updates the body weight from [newValue], the text typed by the user in the current unit
-     * system. In pounds, which are whole numbers, any decimal part is dropped, refer to
+     * system. Pounds keep a single decimal, refer to
      * [parseWeightInput]. An empty or unparsable text leaves no body weight.
      */
     fun updateBodyweight(newValue: String) {

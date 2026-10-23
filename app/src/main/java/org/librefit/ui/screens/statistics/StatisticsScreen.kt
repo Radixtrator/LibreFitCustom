@@ -94,7 +94,7 @@ private fun StatisticsScreenContent(
                     decimalCount = when (exercisesDistributionStatisticsChart) {
                         StatisticsChart.DURATION -> 0
                         StatisticsChart.REPS -> 2
-                        // Pounds are shown as whole numbers
+                        // Pounds are shown with one decimal at most
                         StatisticsChart.LOAD, StatisticsChart.VOLUME -> weightDecimalCount(2)
                     },
                     suffix = when (exercisesDistributionStatisticsChart) {
@@ -127,7 +127,7 @@ private fun StatisticsScreenContent(
                     decimalCount = when (exercisesDistributionStatisticsChart) {
                         StatisticsChart.DURATION -> 0
                         StatisticsChart.REPS -> 2
-                        // Pounds are shown as whole numbers
+                        // Pounds are shown with one decimal at most
                         StatisticsChart.LOAD, StatisticsChart.VOLUME -> weightDecimalCount(2)
                     },
                     suffix = when (exercisesDistributionStatisticsChart) {

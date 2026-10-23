@@ -16,8 +16,8 @@ import java.math.BigDecimal
 class WeightTest {
 
     @Test
-    fun `pounds are shown with no decimals and kilograms with two`() {
-        assertThat(Weight.decimalDigits(UnitSystem.IMPERIAL)).isEqualTo(0)
+    fun `pounds are shown with one decimal and kilograms with two`() {
+        assertThat(Weight.decimalDigits(UnitSystem.IMPERIAL)).isEqualTo(1)
         assertThat(Weight.decimalDigits(UnitSystem.METRIC))
             .isEqualTo(Weight.NUMBER_OF_DECIMAL_DIGITS)
     }
@@ -48,12 +48,12 @@ class WeightTest {
     }
 
     @Test
-    fun `fractions of a pound are rounded half up to whole pounds`() {
-        assertThat(Weight.pounds(137.5).roundedValue(UnitSystem.IMPERIAL)).isEqualTo(138.0)
-        assertThat(Weight.pounds(136.5).roundedValue(UnitSystem.IMPERIAL)).isEqualTo(137.0)
-        assertThat(Weight.pounds(2.5).roundedValue(UnitSystem.IMPERIAL)).isEqualTo(3.0)
-        assertThat(Weight.pounds(0.5).roundedValue(UnitSystem.IMPERIAL)).isEqualTo(1.0)
-        assertThat(Weight.pounds(0.4).roundedValue(UnitSystem.IMPERIAL)).isEqualTo(0.0)
+    fun `fractions of a pound are rounded half up to a tenth of a pound`() {
+        assertThat(Weight.pounds(137.5).roundedValue(UnitSystem.IMPERIAL)).isEqualTo(137.5)
+        assertThat(Weight.pounds(136.25).roundedValue(UnitSystem.IMPERIAL)).isEqualTo(136.3)
+        assertThat(Weight.pounds(2.5).roundedValue(UnitSystem.IMPERIAL)).isEqualTo(2.5)
+        assertThat(Weight.pounds(0.05).roundedValue(UnitSystem.IMPERIAL)).isEqualTo(0.1)
+        assertThat(Weight.pounds(0.04).roundedValue(UnitSystem.IMPERIAL)).isEqualTo(0.0)
     }
 
     @Test
@@ -126,7 +126,7 @@ class WeightTest {
         assertThat(Weight.roundHalfUp(123456.785, 2)).isEqualTo(123456.79)
         assertThat(
             Weight.kilograms(Weight.MAX_WEIGHT_IN_KILOGRAMS).roundedValue(UnitSystem.IMPERIAL)
-        ).isEqualTo(2204620.0)
+        ).isEqualTo(2204620.4)
     }
 
     @Test
@@ -158,13 +158,13 @@ class WeightTest {
     }
 
     @Test
-    fun `stepping a fractional load in pounds rounds it to the pound first`() {
+    fun `stepping a half pound load keeps the half pound`() {
         val load = Weight.pounds(137.5)
 
         assertThat(load.stepLoad(up = true, unitSystem = UnitSystem.IMPERIAL).inPounds)
-            .isWithin(1e-9).of(143.0)
+            .isWithin(1e-9).of(142.5)
         assertThat(load.stepLoad(up = false, unitSystem = UnitSystem.IMPERIAL).inPounds)
-            .isWithin(1e-9).of(133.0)
+            .isWithin(1e-9).of(132.5)
     }
 
     @Test
@@ -211,7 +211,7 @@ class WeightTest {
     }
 
     @Test
-    fun `weight increments step by five pounds or one and a quarter kilograms`() {
+    fun `weight increments step by two and a half pounds or one and a quarter kilograms`() {
         var pounds = Weight.zero()
         var kilograms = Weight.zero()
 
@@ -224,19 +224,19 @@ class WeightTest {
             kilograms.roundedValue(UnitSystem.METRIC)
         }
 
-        assertThat(shownPounds).containsExactly(5.0, 10.0, 15.0, 20.0).inOrder()
+        assertThat(shownPounds).containsExactly(2.5, 5.0, 7.5, 10.0).inOrder()
         assertThat(shownKilograms).containsExactly(1.25, 2.5, 3.75, 5.0).inOrder()
     }
 
     @Test
-    fun `a legacy increment of two and a half pounds is shown and stepped as three pounds`() {
+    fun `an increment of two and a half pounds is shown and stepped as it is`() {
         val increment = Weight.pounds(2.5)
 
-        assertThat(increment.roundedValue(UnitSystem.IMPERIAL)).isEqualTo(3.0)
+        assertThat(increment.roundedValue(UnitSystem.IMPERIAL)).isEqualTo(2.5)
         assertThat(
             increment.stepIncrement(up = true, unitSystem = UnitSystem.IMPERIAL)
                 .roundedValue(UnitSystem.IMPERIAL)
-        ).isEqualTo(8.0)
+        ).isEqualTo(5.0)
         assertThat(increment.stepIncrement(up = false, unitSystem = UnitSystem.IMPERIAL))
             .isEqualTo(Weight.zero())
     }

@@ -111,7 +111,7 @@ private const val MAX_VISIBLE_PLATES = 7
 
 /**
  * Plates come in fractions of a unit even in pounds (2.5 lb, 1.25 lb), so the calculator reads and
- * shows weights at full precision instead of the whole pounds used elsewhere, refer to
+ * shows weights at full precision instead of the single decimal used elsewhere, refer to
  * [Weight.decimalDigits]
  */
 private const val PLATE_DECIMAL_DIGITS = Weight.NUMBER_OF_DECIMAL_DIGITS

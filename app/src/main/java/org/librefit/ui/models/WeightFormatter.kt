@@ -32,8 +32,8 @@ import java.util.Locale
  * "61.25 kg" or "135 lb".
  *
  * @param numberOfDecimalDigits The number of decimal digits to round to. By default, it is the
- * precision of the current [UnitSystem], refer to [Weight.decimalDigits], so pounds are shown as
- * whole numbers.
+ * precision of the current [UnitSystem], refer to [Weight.decimalDigits], so pounds are shown with
+ * one decimal.
  */
 @Composable
 fun Weight.formatToText(
@@ -91,7 +91,7 @@ fun Weight.doubleValueAsString(): String {
  * [numberOfDecimalDigits]. Refer to [Weight.roundedValue]
  *
  * @param numberOfDecimalDigits By default, it is the precision of [unitSystem], refer to
- * [Weight.decimalDigits], so pounds are whole numbers.
+ * [Weight.decimalDigits], so pounds have one decimal.
  */
 fun Weight.doubleValue(
     unitSystem: UnitSystem,
@@ -115,7 +115,7 @@ fun Double.toWeight(): Weight {
 /**
  * Caps [decimalCount], the number of decimal digits a chart or a label would show a weight with,
  * to the precision of the current [UnitSystem] (refer to [Weight.decimalDigits]): it is left as it
- * is in kilograms, while pounds are always shown as whole numbers.
+ * is in kilograms, while pounds are shown with one decimal at most.
  */
 @Composable
 fun weightDecimalCount(decimalCount: Int = NUMBER_OF_DECIMAL_DIGITS): Int {
@@ -132,7 +132,7 @@ fun weightDecimalCount(decimalCount: Int = NUMBER_OF_DECIMAL_DIGITS): Int {
  *
  * ```
  * Weight.pounds(150.0).toInputText(UnitSystem.IMPERIAL)   // "150", not "149.99"
- * Weight.pounds(137.5).toInputText(UnitSystem.IMPERIAL)   // "138"
+ * Weight.pounds(137.5).toInputText(UnitSystem.IMPERIAL)   // "137.5"
  * Weight.kilograms(61.25).toInputText(UnitSystem.METRIC)  // "61.25"
  * Weight.kilograms(60.5).toInputText(UnitSystem.METRIC)   // "60.5"
  * Weight.kilograms(60.0).toInputText(UnitSystem.METRIC)   // "60"
@@ -154,26 +154,36 @@ fun Weight.toInputText(unitSystem: UnitSystem): String {
  * Sanitizes what the user typed in an editable weight field of [unitSystem]:
  * - [UnitSystem.METRIC]: as [Formatter.normalizeNumericString] does, i.e. up to 3 integer digits
  * and 2 decimal digits.
- * - [UnitSystem.IMPERIAL]: pounds are whole numbers, so only digits are kept, up to 3, and a
- * decimal separator is dropped together with whatever follows it ("135.5" gives "135"). Leading
- * zeros are dropped as well, so typing after the "0" of an empty load gives "5" rather than "05".
+ * - [UnitSystem.IMPERIAL]: up to 3 integer digits and [Weight.NUMBER_OF_DECIMAL_DIGITS_IN_POUNDS]
+ * decimal digits ("135.25" gives "135.2"). Leading zeros are dropped, so typing after the "0" of
+ * an empty load gives "5" rather than "05".
  */
 fun normalizeWeightInput(text: String, unitSystem: UnitSystem): String {
     return when (unitSystem) {
         UnitSystem.METRIC -> Formatter.normalizeNumericString(text)
         UnitSystem.IMPERIAL -> {
-            val digits = text
-                .takeWhile { it != '.' && it != ',' }
+            val separatorIndex = text.indexOfFirst { it == '.' || it == ',' }
+            val integerDigits = (if (separatorIndex == -1) text else text.take(separatorIndex))
                 .filter { it.isDigit() }
+            val integerPart = if (integerDigits.isEmpty()) "" else
+                integerDigits.trimStart('0').take(3).ifEmpty { "0" }
+            val decimalPart = if (separatorIndex == -1) null else text
+                .drop(separatorIndex + 1)
+                .filter { it.isDigit() }
+                .take(Weight.NUMBER_OF_DECIMAL_DIGITS_IN_POUNDS)
 
-            if (digits.isEmpty()) "" else digits.trimStart('0').take(3).ifEmpty { "0" }
+            when {
+                decimalPart == null -> integerPart
+                integerPart.isEmpty() && decimalPart.isEmpty() -> ""
+                else -> integerPart.ifEmpty { "0" } + "." + decimalPart
+            }
         }
     }
 }
 
 /**
  * Parses what the user typed in an editable weight field of [unitSystem], after sanitizing it with
- * [normalizeWeightInput], so pounds are always whole numbers.
+ * [normalizeWeightInput], so pounds have one decimal at most.
  *
  * @return The value expressed in the unit of [unitSystem], ready for [Weight.auto], or null when
  * there is nothing to parse, e.g. an empty field.
@@ -201,13 +211,12 @@ fun Weight.isRepresentedBy(text: String, unitSystem: UnitSystem): Boolean {
 }
 
 /**
- * Returns the keyboard to show for an editable weight field in [unitSystem]: digits only in
- * pounds, which are whole numbers, and digits with a decimal separator in kilograms.
+ * Returns the keyboard to show for an editable weight field in [unitSystem]: digits with a
+ * decimal separator, as both kilograms and pounds can have a fraction.
  */
 fun weightKeyboardType(unitSystem: UnitSystem): KeyboardType {
     return when (unitSystem) {
-        UnitSystem.METRIC -> KeyboardType.Decimal
-        UnitSystem.IMPERIAL -> KeyboardType.Number
+        UnitSystem.METRIC, UnitSystem.IMPERIAL -> KeyboardType.Decimal
     }
 }
 

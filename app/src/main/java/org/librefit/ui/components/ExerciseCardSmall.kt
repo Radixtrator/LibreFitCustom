@@ -309,7 +309,7 @@ fun SharedTransitionScope.ExerciseCardSmall(
                                 } else {
                                     if (setMode.hasLoad) {
                                         // Shown as the load field of ExerciseCard shows it: rounded
-                                        // to the unit, so whole pounds, without trailing zeros
+                                        // to the unit, without trailing zeros
                                         Text(
                                             text = set.load.doubleValueAsString(),
                                             color = contentColor

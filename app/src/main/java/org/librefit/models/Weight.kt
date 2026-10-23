@@ -134,8 +134,8 @@ value class Weight private constructor(
     /**
      * Moves this weight by [delta], expressed in the unit of [unitSystem], on the grid that unit is
      * shown with (refer to [decimalDigits]): the current value is rounded first, the way the user
-     * sees it, and so is the result. For instance, pounds being shown as whole numbers, 137.5 lb
-     * stepped by 5 gives 143 lb.
+     * sees it, and so is the result. For instance, pounds being shown with one decimal, 137.46 lb
+     * stepped by 5 gives 142.5 lb.
      *
      * @param maxValueInUnit The largest value accepted, in the unit of [unitSystem]. It must not be
      * negative. The result is never negative either, nor outside the range accepted by [Weight].
@@ -156,8 +156,8 @@ value class Weight private constructor(
      * - [UnitSystem.METRIC]: by [METRIC_LOAD_STEP_IN_POUNDS] converted to kilograms (about
      * 1.134 kg), exactly as it has always been, refer to [stepBy].
      * - [UnitSystem.IMPERIAL]: by [IMPERIAL_LOAD_STEP_IN_POUNDS], i.e. a 2.5 lb plate on each side
-     * of the bar, landing on whole pounds: the current value is rounded to the closest pound
-     * first, so 135 lb goes to 140 lb and 137.5 lb (shown as 138 lb) goes to 143 lb.
+     * of the bar: the current value is rounded to the tenth of a pound first, so 135 lb goes to
+     * 140 lb and 137.5 lb goes to 142.5 lb.
      *
      * The result is never negative.
      */
@@ -213,10 +213,10 @@ value class Weight private constructor(
         const val NUMBER_OF_DECIMAL_DIGITS = 2
 
         /**
-         * The number of decimal digits pounds are shown and entered with: none, as a fraction of a
-         * pound is below anything a gym can load. Refer to [decimalDigits]
+         * The number of decimal digits pounds are shown and entered with: one, enough for the half
+         * pounds a 2.5 lb increment lands on (135, 137.5, 140...). Refer to [decimalDigits]
          */
-        const val NUMBER_OF_DECIMAL_DIGITS_IN_POUNDS = 0
+        const val NUMBER_OF_DECIMAL_DIGITS_IN_POUNDS = 1
 
         /**
          * The step of the load steppers in metric. It is expressed in pounds, as it has always
@@ -237,10 +237,10 @@ value class Weight private constructor(
         const val METRIC_INCREMENT_STEP_IN_KILOGRAMS = 1.25
 
         /**
-         * The step of the weight increment steppers in imperial: pounds are whole numbers, and
-         * 5 lb is a 2.5 lb plate on each side of the bar. Refer to [incrementStep]
+         * The step of the weight increment steppers in imperial, i.e. a 1.25 lb plate on each side
+         * of the bar. Refer to [incrementStep]
          */
-        const val IMPERIAL_INCREMENT_STEP_IN_POUNDS = 5.0
+        const val IMPERIAL_INCREMENT_STEP_IN_POUNDS = 2.5
 
         /**
          * How far a value may fall short of a rounding boundary, in units in the last place, and
@@ -254,7 +254,7 @@ value class Weight private constructor(
         /**
          * The number of decimal digits weights are shown and entered with in [unitSystem]:
          * [NUMBER_OF_DECIMAL_DIGITS] in kilograms and [NUMBER_OF_DECIMAL_DIGITS_IN_POUNDS], i.e.
-         * whole numbers, in pounds. Every place turning a weight into text relies on it, refer to
+         * one decimal, in pounds. Every place turning a weight into text relies on it, refer to
          * [roundedValue].
          */
         fun decimalDigits(unitSystem: UnitSystem): Int = when (unitSystem) {

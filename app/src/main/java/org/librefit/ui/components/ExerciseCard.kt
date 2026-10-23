@@ -1202,7 +1202,7 @@ private fun WeightIncrementRow(
                 modifier = Modifier.width(80.dp),
                 value = incrementValue,
                 onValueChange = { string ->
-                    // Pounds are whole numbers, so only digits are kept for them
+                    // Pounds keep a single decimal, refer to normalizeWeightInput
                     incrementValue = normalizeWeightInput(string, unitSystem)
 
                     onWeightIncrementChange(
@@ -1246,7 +1246,7 @@ private fun WeightIncrementRow(
  * The largest increment that can be configured, expressed in the unit of the current
  * [UnitSystem]. Anything above it is a typo rather than an intention, and [Weight] would throw for
  * values outside of its own range. The steppers keep within it as well: they move the increment by
- * [Weight.Companion.incrementStep] on the grid of the unit, so pounds stay whole numbers, refer to
+ * [Weight.Companion.incrementStep] on the grid of the unit, refer to
  * [Weight.stepIncrement].
  */
 private const val MAX_WEIGHT_INCREMENT = 1000.0
@@ -1684,7 +1684,7 @@ private fun Set(
                         if (!useScrollWheelForInput) {
                             IconButton(
                                 onClick = {
-                                    // 5 lb on whole pounds, or about 1.134 kg as it has always been
+                                    // 5 lb, or about 1.134 kg as it has always been
                                     val newLoad = set.load.stepLoad(
                                         up = false,
                                         unitSystem = unitSystem
@@ -1702,7 +1702,7 @@ private fun Set(
                                 modifier = Modifier.width(80.dp),
                                 value = weightValue,
                                 onValueChange = { string ->
-                                    // Pounds are whole numbers, so only digits are kept for them
+                                    // Pounds keep a single decimal, refer to normalizeWeightInput
                                     weightValue = normalizeWeightInput(string, unitSystem)
 
                                     updateSetLoad(
@@ -1737,8 +1737,8 @@ private fun Set(
                                         .clip(MaterialTheme.shapes.extraLarge)
                                         .clickable {
                                             // The wheels open on the load as it is shown, e.g.
-                                            // 150 lb rather than 149.99, and offer no decimal part
-                                            // for pounds, which are whole numbers
+                                            // 150 lb rather than 149.99, and offer only half pounds
+                                            // as the decimal part in pounds
                                             inputModalBottomSheetState =
                                                 InputModalBottomSheetState.Weight.fromWeight(
                                                     weight = set.load,

@@ -358,8 +358,7 @@ private fun MeasurementScreenContent(
                                     isError = bodyweightValue.isBlank(),
                                     singleLine = true,
                                     keyboardOptions = KeyboardOptions(
-                                        // Pounds are whole numbers, so there is no separator
-                                        keyboardType = weightKeyboardType(unitSystem),
+                                                                                keyboardType = weightKeyboardType(unitSystem),
                                         showKeyboardOnFocus = true
                                     ),
                                     onValueChange = {

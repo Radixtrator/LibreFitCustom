@@ -158,10 +158,9 @@ sealed class InputModalBottomSheetState {
              * on the value shown everywhere else, i.e. [org.librefit.models.Weight.roundedValue],
              * so 150 lb opens on 150 rather than on 149.99.
              *
-             * Pounds are whole numbers (refer to [org.librefit.models.Weight.decimalDigits]), so
-             * in [UnitSystem.IMPERIAL] the decimal wheel only holds zero and
-             * [org.librefit.ui.components.modalBottomSheets.InputModalBottomSheet] hides it, refer
-             * to [hasDecimalPart]. In [UnitSystem.METRIC], the wheels are the ones of [create].
+             * In [UnitSystem.IMPERIAL] the decimal wheel holds the half pound only (.0 and .5), the
+             * fractions a gym can load. In [UnitSystem.METRIC], the wheels are the ones of
+             * [create].
              *
              * Use [toWeight] to turn the picked value back into a [org.librefit.models.Weight].
              */
@@ -175,6 +174,14 @@ sealed class InputModalBottomSheetState {
                         integerWeight = integerPart.toInt(),
                         decimalWeight = 0,
                         decimalWeightRange = persistentListOf(0)
+                    )
+                } else if (unitSystem == UnitSystem.IMPERIAL) {
+                    val halfPounds = (value * 2).roundToInt()
+                    create(
+                        integerWeight = halfPounds / 2,
+                        decimalWeight = if (halfPounds % 2 == 0) 0 else 5,
+                        decimalStep = 5,
+                        decimalWeightRange = persistentListOf(0, 5)
                     )
                 } else {
                     create(
@@ -204,8 +211,7 @@ sealed class InputModalBottomSheetState {
         val totalWeight: Double get() = integerWeight + (decimalWeight / divisor)
 
         /**
-         * Whether there is a decimal part to pick at all. It is not the case for weights in pounds,
-         * which are whole numbers, refer to [fromWeight].
+         * Whether there is a decimal part to pick at all, refer to [fromWeight].
          */
         val hasDecimalPart: Boolean get() = decimalWeightRange.size > 1
 
