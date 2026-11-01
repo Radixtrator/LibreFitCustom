@@ -143,12 +143,13 @@ class UserPreferencesRepository(
             initialValue = -1L
         )
 
+    // Off unless turned on: the workout header scrolls away with the list by default
     val isWorkoutHeaderSticky: StateFlow<Boolean> = dataStore.data
-        .map { preferences -> preferences[IS_WORKOUT_HEADER_STICKY_KEY] != false }
+        .map { preferences -> preferences[IS_WORKOUT_HEADER_STICKY_KEY] == true }
         .stateIn(
             scope = applicationScope,
             started = SharingStarted.Eagerly,
-            initialValue = true
+            initialValue = false
         )
 
     val useScrollWheelForInput: StateFlow<Boolean> = dataStore.data
