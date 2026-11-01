@@ -28,6 +28,7 @@ import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import org.librefit.db.entity.ExerciseDC
+import org.librefit.db.relations.ExerciseWithSets
 import org.librefit.db.relations.WorkoutWithExercisesAndSets
 import org.librefit.db.repository.DatasetRepository
 import org.librefit.db.repository.UserPreferencesRepository
@@ -52,9 +53,11 @@ import org.librefit.ui.models.mappers.toEntity
 import org.librefit.ui.models.mappers.toUi
 import org.librefit.ui.models.moveExercise
 import org.librefit.ui.models.nextInSupersetRound
+import org.librefit.ui.models.prefilledFrom
 import org.librefit.ui.models.restTimeAfterCompleting
 import org.librefit.ui.models.withAmrap
 import org.librefit.ui.models.withNormalizedExercisePositions
+import org.librefit.ui.models.withRoutineEdits
 import org.librefit.util.WeightProgression
 import kotlin.random.Random
 import kotlin.time.Duration.Companion.milliseconds
@@ -123,22 +126,27 @@ class WorkoutScreenViewModel(
                 initialValue = emptyList()
             )
 
+    /**
+     * It tries to find in the completed workouts the previous performance of the same exercise and
+     * in the same routine. If there isn't a linked routine, it takes the latest workout with that
+     * exercise
+     */
+    private suspend fun previousSessionOf(eWs: UiExerciseWithSets, w: UiWorkout): ExerciseWithSets? {
+        val list = workoutRepository.getCompletedWorkoutsWithExercisesWithIdExerciseDC(
+            idExerciseDC = eWs.exerciseDC.id
+        ).firstOrNull()
+
+        val previousWorkout =
+            list?.find { it.workout.routineId == w.routineId } ?: list?.firstOrNull()
+        return previousWorkout?.exercisesWithSets?.find { it.exerciseDC.id == eWs.exerciseDC.id }
+    }
+
     private suspend fun previousPerformancesOf(
         list: List<UiExerciseWithSets>,
         w: UiWorkout
     ): List<List<PreviousPerformanceSet>> =
         list.map { eWs ->
-            val list = workoutRepository.getCompletedWorkoutsWithExercisesWithIdExerciseDC(
-                idExerciseDC = eWs.exerciseDC.id
-            ).firstOrNull()
-
-            // It tries to find in the completed workouts the previous performance of
-            // the same exercise and in the same routine. If there isn't a linked routine, it takes the
-            // latest workout with that exercise
-            val previousWorkout =
-                list?.find { it.workout.routineId == w.routineId } ?: list?.firstOrNull()
-            val previousEWS =
-                previousWorkout?.exercisesWithSets?.find { it.exerciseDC.id == eWs.exerciseDC.id }
+            val previousEWS = previousSessionOf(eWs, w)
 
             // The load goes up only when the whole previous session of this exercise went well
             val previousSessionSuccessful =
@@ -216,25 +224,33 @@ class WorkoutScreenViewModel(
     }
 
     /**
-     * Sets the load of every set to the one suggested by [WeightProgression], wherever the
-     * previous session of the exercise earned an increase.
+     * Fills the sets accepted by [shouldPrefill] with what was done in the previous session of
+     * their exercise, with the load raised where that session earned it. Refer to [prefilledFrom].
      */
-    private suspend fun applySuggestedLoads() {
-        val suggestions = previousPerformancesOf(exercises.value, workout.value)
+    private suspend fun prefillFromPreviousSessions(shouldPrefill: (UiSet) -> Boolean = { true }) {
+        val w = workout.value
+        val previousSessions = exercises.value.associate { eWs ->
+            eWs.exercise.id to previousSessionOf(eWs, w)
+        }
         _exercises.update { exercises ->
-            exercises.mapIndexed { i, eWs ->
-                eWs.copy(
-                    sets = eWs.sets.mapIndexed { j, set ->
-                        suggestions.getOrNull(i)?.getOrNull(j)?.suggestedLoad
-                            ?.let { set.copy(load = it) } ?: set
-                    }.toImmutableList()
-                )
+            exercises.map { eWs ->
+                eWs.prefilledFrom(previousSessions[eWs.exercise.id], shouldPrefill)
             }
         }
     }
 
     // A Job to hold the running set's stopwatch coroutine
     private var stopwatchJob: Job? = null
+
+    private var isLoaded = false
+
+    private val _routineId = MutableStateFlow(0L)
+
+    /**
+     * The id of the routine this workout was started from, or `0` when it has none, e.g. an empty
+     * workout. It is the routine opened by "Edit routine".
+     */
+    val routineId = _routineId.asStateFlow()
 
     init {
         viewModelScope.launch {
@@ -256,15 +272,19 @@ class WorkoutScreenViewModel(
                     workoutWithExercisesAndSets.exercisesWithSets
                 }
 
-                // A fresh workout starts from the progressed loads. A resumed one already holds
-                // whatever the user settled on, so it is left as it is
+                // A fresh workout starts from the previous session, with the progressed loads. A
+                // resumed one already holds whatever the user settled on, so it is left as it is
                 if (workoutWithExercisesAndSets.workout.state != WorkoutState.RUNNING) {
-                    applySuggestedLoads()
+                    prefillFromPreviousSessions()
                 }
 
                 _idsOfSetsWithStopwatchNotStartedAtLeastOnce.update {
                     exercises.value.flatMap { it.sets }.map { it.id }.toSet()
                 }
+
+                isLoaded = true
+
+                followRoutineEdits()
             }
         }
 
@@ -302,6 +322,50 @@ class WorkoutScreenViewModel(
                     }
                 }
         }
+    }
+
+    /**
+     * Keeps the workout in step with its routine: whenever the routine is saved while the workout
+     * is going on, i.e. it has been edited from this screen, the edits are carried into the workout.
+     * Refer to [withRoutineEdits].
+     */
+    private suspend fun followRoutineEdits() {
+        val routineId = workoutRepository.getRoutineFromRoutineID(workout.value.routineId).id
+        if (routineId == 0L) return
+        _routineId.update { routineId }
+
+        var routine = workoutRepository.getWorkoutWithExercisesAndSets(routineId)
+
+        workoutRepository.observeWorkoutWithExercisesAndSets(routineId)
+            .distinctUntilChanged()
+            .collect { edited ->
+                if (edited == null || edited == routine) return@collect
+
+                val idsOfSetsBefore = exercises.value.flatMap { it.sets }.map { it.id }.toSet()
+
+                _exercises.update { exercises ->
+                    exercises.withRoutineEdits(
+                        before = routine.exercisesWithSets,
+                        after = edited.exercisesWithSets
+                    )
+                }
+                _workout.update {
+                    it.copy(
+                        title = if (edited.workout.title != routine.workout.title) edited.workout.title else it.title,
+                        notes = if (edited.workout.notes != routine.workout.notes) edited.workout.notes else it.notes
+                    )
+                }
+                routine = edited
+
+                // The sets that came with the edit start from the previous session too
+                val newSetIds = exercises.value.flatMap { it.sets }.map { it.id }.toSet() - idsOfSetsBefore
+                if (newSetIds.isNotEmpty()) {
+                    prefillFromPreviousSessions { it.id in newSetIds }
+                    _idsOfSetsWithStopwatchNotStartedAtLeastOnce.update { it + newSetIds }
+                }
+
+                syncToRepository()
+            }
     }
 
     fun addExerciseWithSets(exerciseDC: ExerciseDC) {
@@ -651,6 +715,11 @@ class WorkoutScreenViewModel(
     fun updateFocus(isFocused: Boolean) {
         this.isFocused = isFocused
         workoutServiceManager.updateFocus(isFocused)
+        // Other screens opened on top of this one, like the routine editor, use the pending
+        // workout of the repository too, so it is handed back to this workout on return
+        if (isFocused && isLoaded) {
+            syncToRepository()
+        }
     }
 
 

@@ -15,6 +15,7 @@ import androidx.lifecycle.viewModelScope
 import kotlinx.collections.immutable.toImmutableList
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineDispatcher
+import kotlinx.coroutines.NonCancellable
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
@@ -457,17 +458,20 @@ class EditWorkoutScreenViewModel(
 
 
     fun saveWorkoutWithExercisesInDB() {
-        viewModelScope.launch(ioDispatcher) {
-            val state = if (isRoutine.value) WorkoutState.ROUTINE else WorkoutState.COMPLETED
+        val state = if (isRoutine.value) WorkoutState.ROUTINE else WorkoutState.COMPLETED
+        val workoutWithExercisesAndSets = WorkoutWithExercisesAndSets(
+            workout = workout.value.copy(state = state).toEntity(),
+            exercisesWithSets = exercises.value
+                .withNormalizedExercisePositions()
+                .map { it.toEntity() }
+        )
 
-            workoutRepository.addWorkoutWithExercisesAndSets(
-                WorkoutWithExercisesAndSets(
-                    workout = workout.value.copy(state = state).toEntity(),
-                    exercisesWithSets = exercises.value
-                        .withNormalizedExercisePositions()
-                        .map { it.toEntity() }
-                )
-            )
+        viewModelScope.launch(ioDispatcher) {
+            // The screen leaves right after saving, which clears this ViewModel, so the save must
+            // not be cut short halfway
+            withContext(NonCancellable) {
+                workoutRepository.addWorkoutWithExercisesAndSets(workoutWithExercisesAndSets)
+            }
         }
     }
 

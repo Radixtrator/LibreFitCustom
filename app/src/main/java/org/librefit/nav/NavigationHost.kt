@@ -219,10 +219,15 @@ fun NavigationHost(
                                 backStack.navigate(Route.BeforeSavingScreen(workoutId))
                             },
                             onNavigateToSuccessScreen = dropUnlessResumed {
-                                backStack.navigate(
-                                    Route.SuccessScreen(SuccessMessage.ROUTINE_SAVED),
-                                    popUpTo = Route.MainScreen
-                                )
+                                if (route.fromWorkout) {
+                                    // Back to the workout, which takes in the edits
+                                    backStack.goBack()
+                                } else {
+                                    backStack.navigate(
+                                        Route.SuccessScreen(SuccessMessage.ROUTINE_SAVED),
+                                        popUpTo = Route.MainScreen
+                                    )
+                                }
                             },
                             animatedVisibilityScope = LocalNavAnimatedContentScope.current
                         )
@@ -423,6 +428,11 @@ fun NavigationHost(
                             },
                             onNavigateToInfoExercise = dropUnlessResumedNav { id, exerciseDCid ->
                                 backStack.navigate(Route.InfoExerciseScreen(id, exerciseDCid))
+                            },
+                            onNavigateToEditRoutine = dropUnlessResumedNav { routineId ->
+                                backStack.navigate(
+                                    Route.EditWorkoutScreen(routineId, fromWorkout = true)
+                                )
                             },
                             sharedViewModel = sharedViewModel,
                             animatedVisibilityScope = LocalNavAnimatedContentScope.current

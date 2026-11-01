@@ -74,6 +74,13 @@ class WorkoutRepository(
         return workoutDao.getWorkoutWithExercisesAndSets(id = workoutID).toUi()
     }
 
+    /**
+     * Refer to [WorkoutDao.observeWorkoutWithExercisesAndSets]
+     */
+    fun observeWorkoutWithExercisesAndSets(workoutID: Long): Flow<UiWorkoutWithExercisesAndSets?> {
+        return workoutDao.observeWorkoutWithExercisesAndSets(id = workoutID).map { it?.toUi() }
+    }
+
     suspend fun getRoutineFromRoutineID(routineId: Long): Workout {
         return workoutDao.getWorkoutFromRoutineIDAndState(routineId, state = WorkoutState.ROUTINE)
             ?: Workout()

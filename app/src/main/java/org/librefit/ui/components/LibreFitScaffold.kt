@@ -56,9 +56,9 @@ import org.librefit.R
  * @param actionsEnabled A list of booleans that controls whether the relative action button is enabled or disabled.
  * The default value is `true`.
  * @param actionsDescription A list of strings that provides a description of the relative action.
- * It should not be passed along with an icon from [actionsIcons].
- * @param actionsIcons A list of icons to be displayed inside the relative action button.
- * It should not be passed along with a description from [actionsDescription].
+ * Along with an icon from [actionsIcons], it only describes the icon for accessibility.
+ * @param actionsIcons A list of icons to be displayed inside the relative action button. A
+ * description from [actionsDescription] at the same position becomes its content description.
  * @param actionsElevated A list of booleans that controls the color elevation of the relative action button.
  * The default value is `true`.
  * @param fabAction A callback function executed when the [FloatingActionButton] is clicked. It
@@ -159,7 +159,7 @@ fun LibreFitScaffold(
                                                 )
                                             }
                                         }
-                                        if (description != null) {
+                                        if (icon == null && description != null) {
                                             Button(
                                                 modifier = interactionSources.getOrNull(index)
                                                     ?.let { Modifier.animateWidth(it) }

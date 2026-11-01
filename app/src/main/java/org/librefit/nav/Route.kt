@@ -32,9 +32,14 @@ sealed interface Route : NavKey {
         val exerciseDCid: String = ""
     ) : Route
 
+    /**
+     * @property fromWorkout Whether the routine is edited during one of its workouts. Saving it
+     * then goes back to the workout instead of leaving it.
+     */
     @Serializable
     data class EditWorkoutScreen(
-        val workoutId: Long
+        val workoutId: Long,
+        val fromWorkout: Boolean = false
     ) : Route
 
     @Serializable

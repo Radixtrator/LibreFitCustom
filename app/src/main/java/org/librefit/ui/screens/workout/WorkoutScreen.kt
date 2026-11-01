@@ -118,6 +118,7 @@ fun SharedTransitionScope.WorkoutScreen(
     onNavigateBack: () -> Unit,
     onNavigateToBeforeSavingScreen: (Long) -> Unit,
     onNavigateToInfoExercise: (Long, String) -> Unit,
+    onNavigateToEditRoutine: (Long) -> Unit,
     sharedViewModel: SharedViewModel,
     animatedVisibilityScope: AnimatedVisibilityScope,
     route: Route.WorkoutScreen,
@@ -154,6 +155,8 @@ fun SharedTransitionScope.WorkoutScreen(
     val coroutineScope = rememberCoroutineScope()
 
     val runningWorkoutId by viewModel.runningWorkoutId.collectAsStateWithLifecycle()
+
+    val routineId by viewModel.routineId.collectAsStateWithLifecycle()
 
     val isHeaderSticky by viewModel.isHeaderSticky.collectAsStateWithLifecycle()
 
@@ -213,11 +216,32 @@ fun SharedTransitionScope.WorkoutScreen(
             viewModel.stopWorkoutService()
             onNavigateBack()
         },
-        actions = persistentListOf({
-            onNavigateToBeforeSavingScreen(runningWorkoutId)
-        }),
-        actionsEnabled = persistentListOf(!exercisesWithSets.isEmpty()),
-        actionsDescription = persistentListOf(stringResource(R.string.done)),
+        // A workout started from a routine can edit it on the go, refer to
+        // WorkoutScreenViewModel.followRoutineEdits
+        actions = if (routineId != 0L) {
+            persistentListOf(
+                { onNavigateToEditRoutine(routineId) },
+                { onNavigateToBeforeSavingScreen(runningWorkoutId) }
+            )
+        } else {
+            persistentListOf({ onNavigateToBeforeSavingScreen(runningWorkoutId) })
+        },
+        actionsEnabled = if (routineId != 0L) {
+            persistentListOf(true, !exercisesWithSets.isEmpty())
+        } else {
+            persistentListOf(!exercisesWithSets.isEmpty())
+        },
+        actionsDescription = if (routineId != 0L) {
+            persistentListOf(stringResource(R.string.edit_routine), stringResource(R.string.done))
+        } else {
+            persistentListOf(stringResource(R.string.done))
+        },
+        actionsIcons = if (routineId != 0L) {
+            persistentListOf(painterResource(R.drawable.ic_edit))
+        } else {
+            persistentListOf()
+        },
+        actionsElevated = if (routineId != 0L) persistentListOf(false, true) else persistentListOf(),
     ) { innerPadding ->
         Box(
             modifier = Modifier

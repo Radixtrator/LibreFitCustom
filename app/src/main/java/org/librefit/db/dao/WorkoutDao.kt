@@ -79,6 +79,14 @@ interface WorkoutDao {
     @Query("SELECT * FROM workouts WHERE id = :id")
     suspend fun getWorkoutWithExercisesAndSets(id: Long): WorkoutWithExercisesAndSets
 
+    /**
+     * Same as [getWorkoutWithExercisesAndSets], but it emits again whenever the workout, its
+     * exercises or its sets change. It emits `null` when there is no workout with the given [id]
+     */
+    @Transaction
+    @Query("SELECT * FROM workouts WHERE id = :id")
+    fun observeWorkoutWithExercisesAndSets(id: Long): Flow<WorkoutWithExercisesAndSets?>
+
     @Query("SELECT * FROM workouts WHERE state = :state AND routineId = :routineId")
     suspend fun getWorkoutFromRoutineIDAndState(routineId: Long, state: WorkoutState): Workout?
 
