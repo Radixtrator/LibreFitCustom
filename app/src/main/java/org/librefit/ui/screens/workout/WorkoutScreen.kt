@@ -23,6 +23,7 @@ import androidx.compose.foundation.layout.BoxScope
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
@@ -553,6 +554,10 @@ private fun BoxScope.FloatingWorkoutActionBar(
     ) {
         HorizontalFloatingToolbar(
             expanded = true,
+            // Without a FAB, the toolbar sizes itself to the intrinsic height of its content and
+            // the button group does not report a sensible one, so the bar stretched into a huge
+            // circle. Pin it to the standard 64dp floating toolbar height.
+            modifier = Modifier.height(64.dp),
         ) {
             val animatedTimerProgress = animateFloatAsState(
                 targetValue = restTimerProgress,
