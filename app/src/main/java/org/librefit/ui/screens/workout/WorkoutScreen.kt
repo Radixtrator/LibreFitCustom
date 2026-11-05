@@ -22,6 +22,7 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxScope
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.offset
@@ -33,19 +34,18 @@ import androidx.compose.foundation.lazy.LazyListState
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.CircleShape
-import androidx.compose.material3.ButtonGroup
 import androidx.compose.material3.CircularWavyProgressIndicator
 import androidx.compose.material3.ElevatedCard
 import androidx.compose.material3.ElevatedToggleButton
 import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
 import androidx.compose.material3.FloatingToolbarDefaults.ScreenOffset
 import androidx.compose.material3.HorizontalDivider
-import androidx.compose.material3.HorizontalFloatingToolbar
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.IconButtonDefaults
 import androidx.compose.material3.LinearWavyProgressIndicator
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.ToggleButtonDefaults
 import androidx.compose.material3.WavyProgressIndicatorDefaults
@@ -241,7 +241,7 @@ fun SharedTransitionScope.WorkoutScreen(
         } else {
             persistentListOf()
         },
-        actionsElevated = if (routineId != 0L) persistentListOf(false, true) else persistentListOf(),
+        actionsElevated = if (routineId != 0L) persistentListOf(true, true) else persistentListOf(),
     ) { innerPadding ->
         Box(
             modifier = Modifier
@@ -576,12 +576,13 @@ private fun BoxScope.FloatingWorkoutActionBar(
             .offset(y = -ScreenOffset, x = -ScreenOffset)
             .zIndex(1f),
     ) {
-        HorizontalFloatingToolbar(
-            expanded = true,
-            // Without a FAB, the toolbar sizes itself to the intrinsic height of its content and
-            // the button group does not report a sensible one, so the bar stretched into a huge
-            // circle. Pin it to the standard 64dp floating toolbar height.
+        // A plain pill instead of HorizontalFloatingToolbar: without a FAB, the toolbar took its
+        // height from its content and stretched into a huge circle covering the sets
+        Surface(
             modifier = Modifier.height(64.dp),
+            shape = CircleShape,
+            color = MaterialTheme.colorScheme.surfaceContainer,
+            shadowElevation = 6.dp
         ) {
             val animatedTimerProgress = animateFloatAsState(
                 targetValue = restTimerProgress,
@@ -591,75 +592,58 @@ private fun BoxScope.FloatingWorkoutActionBar(
             if (restTime != 0 || nextExerciseName == null) {
                 //Rest timer
                 Row(
-                    horizontalArrangement = Arrangement.spacedBy(10.dp),
+                    modifier = Modifier
+                        .fillMaxHeight()
+                        .padding(horizontal = 8.dp),
+                    horizontalArrangement = Arrangement.spacedBy(4.dp),
                     verticalAlignment = Alignment.CenterVertically
                 ) {
-                    val iconSize = remember { 48.dp }
                     Text(
-                        modifier = Modifier.padding(start = 10.dp),
+                        modifier = Modifier.padding(start = 10.dp, end = 6.dp),
                         text = stringResource(R.string.rest)
                     )
                     Box(
                         contentAlignment = Alignment.Center
                     ) {
                         CircularWavyProgressIndicator(
-                            modifier = Modifier.size(iconSize),
+                            modifier = Modifier.size(48.dp),
                             progress = { animatedTimerProgress.value },
                         )
                         Text("$restTime")
                     }
-
-                    val interactionSources = remember { List(2) { MutableInteractionSource() } }
-                    ButtonGroup(
-                        overflowIndicator = {}
+                    IconButton(
+                        modifier = Modifier.size(48.dp),
+                        onClick = { modifyRestTime(false) },
+                        enabled = restTime > 0,
+                        shapes = IconButtonDefaults.shapes()
                     ) {
-                        customItem(
-                            buttonGroupContent = {
-                                IconButton(
-                                    modifier = Modifier.animateWidth(interactionSources[0]),
-                                    onClick = { modifyRestTime(false) },
-                                    enabled = restTime > 0,
-                                    shapes = IconButtonDefaults.shapes(),
-                                    interactionSource = interactionSources[0]
-                                ) {
-                                    Icon(
-                                        painter = painterResource(R.drawable.ic_replay_10),
-                                        contentDescription = stringResource(R.string.add_ten_seconds),
-                                        modifier = Modifier.size(iconSize)
-                                    )
-                                }
-                            },
-                            menuContent = {}
-                        )
-                        customItem(
-                            buttonGroupContent = {
-                                IconButton(
-                                    modifier = Modifier.animateWidth(interactionSources[1]),
-                                    onClick = { modifyRestTime(true) },
-                                    enabled = restTime > 0,
-                                    shapes = IconButtonDefaults.shapes(),
-                                    interactionSource = interactionSources[1]
-                                ) {
-                                    Icon(
-                                        painter = painterResource(R.drawable.ic_forward_10),
-                                        contentDescription = stringResource(R.string.reduce_ten_seconds),
-                                        modifier = Modifier.size(iconSize)
-                                    )
-                                }
-                            },
-                            menuContent = {}
+                        Icon(
+                            painter = painterResource(R.drawable.ic_replay_10),
+                            contentDescription = stringResource(R.string.add_ten_seconds),
+                            modifier = Modifier.size(32.dp)
                         )
                     }
-
-
+                    IconButton(
+                        modifier = Modifier.size(48.dp),
+                        onClick = { modifyRestTime(true) },
+                        enabled = restTime > 0,
+                        shapes = IconButtonDefaults.shapes()
+                    ) {
+                        Icon(
+                            painter = painterResource(R.drawable.ic_forward_10),
+                            contentDescription = stringResource(R.string.reduce_ten_seconds),
+                            modifier = Modifier.size(32.dp)
+                        )
+                    }
                 }
             } else {
                 // Within a round of a superset there is no rest, the next exercise follows at once
                 Row(
                     modifier = Modifier
+                        .fillMaxHeight()
                         .clip(CircleShape)
                         .clickable(onClick = goToNextExercise)
-                        .padding(horizontal = 10.dp, vertical = 6.dp),
+                        .padding(horizontal = 18.dp, vertical = 6.dp),
                     horizontalArrangement = Arrangement.spacedBy(10.dp),
                     verticalAlignment = Alignment.CenterVertically
                 ) {
