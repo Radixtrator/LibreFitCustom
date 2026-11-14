@@ -26,7 +26,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
--
+- Rest-over sound not playing over music or with the phone locked, and rest timer running late with the screen off
 
 ## [0.5.0] - 2026-09-18
 

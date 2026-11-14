@@ -39,7 +39,13 @@ class NotificationHelper(
         const val WORKOUT_CHANNEL_ID = "WORKOUT_CHANNEL_ID"
         const val WORKOUT_NOTIFICATION_ID = 1001
 
-        const val TIMER_CHANNEL_ID = "TIMER_CHANNEL_ID"
+        /**
+         * The alert sound is played by [WorkoutService] on the media stream, so that it is heard
+         * over music and in silent mode, therefore this channel is silent. Channel sounds cannot be
+         * changed once created, hence a new id replacing [LEGACY_TIMER_CHANNEL_ID].
+         */
+        const val TIMER_CHANNEL_ID = "REST_TIMER_OVER_CHANNEL_ID"
+        private const val LEGACY_TIMER_CHANNEL_ID = "TIMER_CHANNEL_ID"
         const val TIMER_NOTIFICATION_ID = 1002
     }
 
@@ -89,6 +95,7 @@ class NotificationHelper(
             .setContentTitle(appContext.getString(R.string.rest_time_is_over))
             .setCategory(NotificationCompat.CATEGORY_WORKOUT)
             .setPriority(NotificationCompat.PRIORITY_MAX)
+            .setVisibility(NotificationCompat.VISIBILITY_PUBLIC)
             .setContentIntent(contentIntent)
             .setAutoCancel(true)
 
@@ -124,14 +131,11 @@ class NotificationHelper(
             description = appContext.getString(R.string.rest_timer_channel_desc)
         }
 
-        timerChannel.setSound(
-            "android.resource://${appContext.packageName}/raw/alert_notification".toUri(),
-            AudioAttributes.Builder()
-                .setContentType(AudioAttributes.CONTENT_TYPE_SONIFICATION)
-                .setUsage(AudioAttributes.USAGE_NOTIFICATION_EVENT)
-                .build()
-        )
+        timerChannel.setSound(null, null)
+        timerChannel.enableVibration(true)
+        timerChannel.lockscreenVisibility = Notification.VISIBILITY_PUBLIC
 
+        notificationManager.deleteNotificationChannel(LEGACY_TIMER_CHANNEL_ID)
         notificationManager.createNotificationChannel(timerChannel)
     }
 

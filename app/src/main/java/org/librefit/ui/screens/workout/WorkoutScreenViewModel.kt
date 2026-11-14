@@ -38,7 +38,6 @@ import org.librefit.enums.SetMode
 import org.librefit.enums.WorkoutState
 import org.librefit.enums.exercise.Category
 import org.librefit.enums.exercise.Equipment
-import org.librefit.helpers.SoundPlayer
 import org.librefit.models.Weight
 import org.librefit.nav.Route
 import org.librefit.services.WorkoutService
@@ -69,7 +68,6 @@ class WorkoutScreenViewModel(
     private val workoutServiceManager: WorkoutServiceManager,
     private val workoutRepository: WorkoutRepository,
     private val datasetRepository: DatasetRepository,
-    private val soundPlayer: SoundPlayer,
     private val ioDispatcher: CoroutineDispatcher,
     private val mainDispatcher: CoroutineDispatcher,
 ) : ViewModel() {
@@ -689,11 +687,8 @@ class WorkoutScreenViewModel(
     private fun observeChanges() {
         viewModelScope.launch(mainDispatcher) {
             WorkoutService.restTime.collect { newRestTime ->
-                // When timer is over and screen is visible, it plays alert sound only by respecting user preference
-                if (initialRestTime != 1 && newRestTime == 0 && isFocused) {
-                    if (userPreferences.restTimerSoundOn.value) {
-                        soundPlayer.playAlert()
-                    }
+                // The alert sound is played by WorkoutService, so that it plays with the screen off
+                if (initialRestTime != 1 && newRestTime == 0) {
                     initialRestTime = 1
                 }
             }
