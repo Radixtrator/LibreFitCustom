@@ -14,7 +14,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
--
+- Previous weights of a workout started from a routine come only from the last session of that routine, not from the same exercise in other routines
 
 ### Deprecated
 

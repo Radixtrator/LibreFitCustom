@@ -124,19 +124,46 @@ class WorkoutScreenViewModel(
                 initialValue = emptyList()
             )
 
+    /** Whether a routine exists for each routine id looked up, refer to [isFromRoutine] */
+    private val routineExistence = mutableMapOf<Long, Boolean>()
+
+    /** Whether the workout was started from a routine, as opposed to an empty workout */
+    private suspend fun isFromRoutine(w: UiWorkout): Boolean =
+        routineExistence.getOrPut(w.routineId) {
+            workoutRepository.getRoutineFromRoutineID(w.routineId).id != 0L
+        }
+
     /**
-     * It tries to find in the completed workouts the previous performance of the same exercise and
-     * in the same routine. If there isn't a linked routine, it takes the latest workout with that
-     * exercise
+     * Finds the previous performance of [eWs] in the latest completed workout of the same routine,
+     * so the weights carry over from one session of a routine to the next, and are not mixed up
+     * with what was lifted for the same exercise in other routines.
+     *
+     * When the exercise appears more than once in the workout, e.g. a heavy and a light block of
+     * the same lift, each occurrence is matched with the same occurrence of the previous session,
+     * and an occurrence the previous session did not have has no previous performance.
+     *
+     * A routine that has never been completed with this exercise has no previous performance.
+     * Only a workout without a routine, i.e. an empty workout, falls back to the latest workout
+     * with that exercise.
      */
     private suspend fun previousSessionOf(eWs: UiExerciseWithSets, w: UiWorkout): ExerciseWithSets? {
+        val idExerciseDC = eWs.exerciseDC.id
         val list = workoutRepository.getCompletedWorkoutsWithExercisesWithIdExerciseDC(
-            idExerciseDC = eWs.exerciseDC.id
-        ).firstOrNull()
+            idExerciseDC = idExerciseDC
+        ).firstOrNull().orEmpty()
 
-        val previousWorkout =
-            list?.find { it.workout.routineId == w.routineId } ?: list?.firstOrNull()
-        return previousWorkout?.exercisesWithSets?.find { it.exerciseDC.id == eWs.exerciseDC.id }
+        val previousWorkout = list.firstOrNull { it.workout.routineId == w.routineId }
+            ?: if (isFromRoutine(w)) null else list.firstOrNull()
+
+        // The repository keeps only the exercises with this exerciseDC, sorted by position
+        val occurrence = exercises.value
+            .filter { it.exerciseDC.id == idExerciseDC }
+            .indexOfFirst { it.exercise.id == eWs.exercise.id }
+            .coerceAtLeast(0)
+        val previousOccurrences = previousWorkout?.exercisesWithSets.orEmpty()
+            .filter { it.exerciseDC.id == idExerciseDC }
+
+        return previousOccurrences.getOrNull(occurrence)
     }
 
     private suspend fun previousPerformancesOf(
