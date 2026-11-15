@@ -39,7 +39,13 @@ class NotificationHelper(
         const val WORKOUT_CHANNEL_ID = "WORKOUT_CHANNEL_ID"
         const val WORKOUT_NOTIFICATION_ID = 1001
 
-        const val TIMER_CHANNEL_ID = "TIMER_CHANNEL_ID"
+        /**
+         * The alert sound is played by [WorkoutService] on the media stream, so that it is heard
+         * over music and in silent mode, therefore this channel is silent. Channel sounds cannot be
+         * changed once created, hence a new id replacing [LEGACY_TIMER_CHANNEL_ID].
+         */
+        const val TIMER_CHANNEL_ID = "REST_TIMER_OVER_CHANNEL_ID"
+        private const val LEGACY_TIMER_CHANNEL_ID = "TIMER_CHANNEL_ID"
         const val TIMER_NOTIFICATION_ID = 1002
     }
 
@@ -89,6 +95,7 @@ class NotificationHelper(
             .setContentTitle(appContext.getString(R.string.rest_time_is_over))
             .setCategory(NotificationCompat.CATEGORY_WORKOUT)
             .setPriority(NotificationCompat.PRIORITY_MAX)
+            .setVisibility(NotificationCompat.VISIBILITY_PUBLIC)
             .setContentIntent(contentIntent)
             .setAutoCancel(true)
 
@@ -124,14 +131,11 @@ class NotificationHelper(
             description = appContext.getString(R.string.rest_timer_channel_desc)
         }
 
-        timerChannel.setSound(
-            "android.resource://${appContext.packageName}/raw/alert_notification".toUri(),
-            AudioAttributes.Builder()
-                .setContentType(AudioAttributes.CONTENT_TYPE_SONIFICATION)
-                .setUsage(AudioAttributes.USAGE_NOTIFICATION_EVENT)
-                .build()
-        )
+        timerChannel.setSound(null, null)
+        timerChannel.enableVibration(true)
+        timerChannel.lockscreenVisibility = Notification.VISIBILITY_PUBLIC
 
+        notificationManager.deleteNotificationChannel(LEGACY_TIMER_CHANNEL_ID)
         notificationManager.createNotificationChannel(timerChannel)
     }
 
@@ -148,9 +152,7 @@ class NotificationHelper(
     ) {
         val builder = workoutNotificationBuilder
 
-        builder
-            .setProgress(initialRestTime, restTime - 1, false)
-            .clearActions()
+        builder.clearActions()
 
         if (isStopwatchPaused) {
             builder
@@ -169,7 +171,15 @@ class NotificationHelper(
         }
 
 
-        if (restTime != 0 && initialRestTime != 0) {
+        val isResting = restTime != 0 && initialRestTime != 0
+
+        if (isResting) {
+            applyRestTimerLiveUpdate(builder, restTime, initialRestTime)
+        } else {
+            clearRestTimerLiveUpdate(builder)
+        }
+
+        if (isResting) {
             builder
                 .setContentTitle(
                     appContext.getString(R.string.rest) + ": " + formatTime(restTime - 1).substring(
@@ -213,6 +223,57 @@ class NotificationHelper(
         notificationManager.notify(WORKOUT_NOTIFICATION_ID, workoutNotification)
     }
 
+
+    /**
+     * Turns the workout notification into a Live Update while the rest timer runs.
+     *
+     * On Android 16+ a promoted ongoing notification with [NotificationCompat.ProgressStyle] is
+     * shown as a Live Update: a status bar chip and a card at the top of the shade. Samsung One UI
+     * 8 and 9 show these Live Updates in the Now Bar (lock screen and AOD) as a live notification,
+     * so no Samsung-specific SDK is needed. On older versions the style falls back to a regular
+     * progress bar and the promotion request is ignored.
+     *
+     * The remaining time is shown as a count-down chronometer, so the chip and the Now Bar keep
+     * ticking even when the system throttles the per-second updates.
+     */
+    private fun applyRestTimerLiveUpdate(
+        builder: NotificationCompat.Builder,
+        restTime: Int,
+        initialRestTime: Int,
+    ) {
+        val remainingSeconds = (restTime - 1).coerceAtLeast(0)
+        // Adding ten seconds can push the remaining time past the initial one
+        val totalSeconds = maxOf(initialRestTime, remainingSeconds, 1)
+        val primaryColor = appContext.getColor(R.color.md_theme_primary)
+
+        builder
+            .setStyle(
+                NotificationCompat.ProgressStyle()
+                    .setStyledByProgress(true)
+                    .setProgressSegments(
+                        listOf(
+                            NotificationCompat.ProgressStyle.Segment(totalSeconds)
+                                .setColor(primaryColor)
+                        )
+                    )
+                    .setProgress(totalSeconds - remainingSeconds)
+            )
+            .setRequestPromotedOngoing(true)
+            .setShowWhen(true)
+            .setWhen(System.currentTimeMillis() + remainingSeconds * 1000L)
+            .setUsesChronometer(true)
+            .setChronometerCountDown(true)
+    }
+
+    private fun clearRestTimerLiveUpdate(builder: NotificationCompat.Builder) {
+        builder
+            .setStyle(null)
+            .setProgress(0, 0, false)
+            .setRequestPromotedOngoing(false)
+            .setUsesChronometer(false)
+            .setChronometerCountDown(false)
+            .setShowWhen(false)
+    }
 
     private lateinit var timerNotification: Notification
 

@@ -120,7 +120,6 @@ val libreFitModules = module {
             get(),
             get(),
             get(),
-            get(),
             get(named<IoDispatcher>()),
             get(named<MainDispatcher>()),
         )

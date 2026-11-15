@@ -118,4 +118,38 @@ class SupersetRestTest {
         assertEquals(null, superset.nextInSupersetRound(20))
         assertEquals(null, single.nextInSupersetRound(30))
     }
+
+    @Test
+    fun `a failed set outside of a superset rests 30 seconds longer`() {
+        val exercises = listOf(exercise(1, 90, null, true, false))
+
+        assertEquals(120, exercises.restTimeAfterFailing(10))
+    }
+
+    @Test
+    fun `failing the set that closes a superset round lengthens the round rest`() {
+        val exercises = listOf(
+            exercise(1, 60, 7, true, false),
+            exercise(2, 90, 7, true, false)
+        )
+
+        assertEquals(90 + FAILED_SET_EXTRA_REST, exercises.restTimeAfterFailing(20))
+    }
+
+    @Test
+    fun `failing a set in the middle of a superset round gives no rest`() {
+        val exercises = listOf(
+            exercise(1, 60, 7, true, false),
+            exercise(2, 90, 7, false, false)
+        )
+
+        assertEquals(0, exercises.restTimeAfterFailing(10))
+    }
+
+    @Test
+    fun `failing a set of an exercise without rest gives no rest`() {
+        val exercises = listOf(exercise(1, 0, null, true))
+
+        assertEquals(0, exercises.restTimeAfterFailing(10))
+    }
 }

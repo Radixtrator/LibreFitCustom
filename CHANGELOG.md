@@ -10,10 +10,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 
 - Option to update routines with the values of completed sets at the end of a workout [#44](https://github.com/LibreFitOrg/LibreFit/issues/44)
+- Rest timer shows as a Live Update on Android 16+ (status bar chip, and the Now Bar on Samsung One UI 8/9)
+- Failing a set rests 30 seconds longer, including the rest after a superset round closed by a failed set
 
 ### Changed
 
--
+- Previous weights of a workout started from a routine come only from the last session of that routine, not from the same exercise in other routines
 
 ### Deprecated
 
@@ -25,7 +27,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
--
+- Rest-over sound not playing over music or with the phone locked, and rest timer running late with the screen off
 
 ## [0.5.0] - 2026-09-18
 

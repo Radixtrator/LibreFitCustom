@@ -38,7 +38,6 @@ import org.librefit.enums.SetMode
 import org.librefit.enums.WorkoutState
 import org.librefit.enums.exercise.Category
 import org.librefit.enums.exercise.Equipment
-import org.librefit.helpers.SoundPlayer
 import org.librefit.models.Weight
 import org.librefit.nav.Route
 import org.librefit.services.WorkoutService
@@ -54,7 +53,9 @@ import org.librefit.ui.models.mappers.toUi
 import org.librefit.ui.models.moveExercise
 import org.librefit.ui.models.nextInSupersetRound
 import org.librefit.ui.models.prefilledFrom
+import org.librefit.ui.models.FAILED_SET_EXTRA_REST
 import org.librefit.ui.models.restTimeAfterCompleting
+import org.librefit.ui.models.restTimeAfterFailing
 import org.librefit.ui.models.withAmrap
 import org.librefit.ui.models.withNormalizedExercisePositions
 import org.librefit.ui.models.withRoutineEdits
@@ -69,7 +70,6 @@ class WorkoutScreenViewModel(
     private val workoutServiceManager: WorkoutServiceManager,
     private val workoutRepository: WorkoutRepository,
     private val datasetRepository: DatasetRepository,
-    private val soundPlayer: SoundPlayer,
     private val ioDispatcher: CoroutineDispatcher,
     private val mainDispatcher: CoroutineDispatcher,
 ) : ViewModel() {
@@ -126,19 +126,46 @@ class WorkoutScreenViewModel(
                 initialValue = emptyList()
             )
 
+    /** Whether a routine exists for each routine id looked up, refer to [isFromRoutine] */
+    private val routineExistence = mutableMapOf<Long, Boolean>()
+
+    /** Whether the workout was started from a routine, as opposed to an empty workout */
+    private suspend fun isFromRoutine(w: UiWorkout): Boolean =
+        routineExistence.getOrPut(w.routineId) {
+            workoutRepository.getRoutineFromRoutineID(w.routineId).id != 0L
+        }
+
     /**
-     * It tries to find in the completed workouts the previous performance of the same exercise and
-     * in the same routine. If there isn't a linked routine, it takes the latest workout with that
-     * exercise
+     * Finds the previous performance of [eWs] in the latest completed workout of the same routine,
+     * so the weights carry over from one session of a routine to the next, and are not mixed up
+     * with what was lifted for the same exercise in other routines.
+     *
+     * When the exercise appears more than once in the workout, e.g. a heavy and a light block of
+     * the same lift, each occurrence is matched with the same occurrence of the previous session,
+     * and an occurrence the previous session did not have has no previous performance.
+     *
+     * A routine that has never been completed with this exercise has no previous performance.
+     * Only a workout without a routine, i.e. an empty workout, falls back to the latest workout
+     * with that exercise.
      */
     private suspend fun previousSessionOf(eWs: UiExerciseWithSets, w: UiWorkout): ExerciseWithSets? {
+        val idExerciseDC = eWs.exerciseDC.id
         val list = workoutRepository.getCompletedWorkoutsWithExercisesWithIdExerciseDC(
-            idExerciseDC = eWs.exerciseDC.id
-        ).firstOrNull()
+            idExerciseDC = idExerciseDC
+        ).firstOrNull().orEmpty()
 
-        val previousWorkout =
-            list?.find { it.workout.routineId == w.routineId } ?: list?.firstOrNull()
-        return previousWorkout?.exercisesWithSets?.find { it.exerciseDC.id == eWs.exerciseDC.id }
+        val previousWorkout = list.firstOrNull { it.workout.routineId == w.routineId }
+            ?: if (isFromRoutine(w)) null else list.firstOrNull()
+
+        // The repository keeps only the exercises with this exerciseDC, sorted by position
+        val occurrence = exercises.value
+            .filter { it.exerciseDC.id == idExerciseDC }
+            .indexOfFirst { it.exercise.id == eWs.exercise.id }
+            .coerceAtLeast(0)
+        val previousOccurrences = previousWorkout?.exercisesWithSets.orEmpty()
+            .filter { it.exerciseDC.id == idExerciseDC }
+
+        return previousOccurrences.getOrNull(occurrence)
     }
 
     private suspend fun previousPerformancesOf(
@@ -529,11 +556,19 @@ class WorkoutScreenViewModel(
         // restTimeAfterCompleting
         val restTime = if (completed) exercises.value.restTimeAfterCompleting(id) else 0
         if (restTime != 0) {
-            startRestTimer(restTime)
+            startRestTimer(restTime, startedBySetId = id)
         }
         _nextInSuperset.update { if (completed) exercises.value.nextInSupersetRound(id) else null }
         syncToRepository()
     }
+
+    /**
+     * The id of the set whose completion started the running rest timer, so that failing it, or
+     * taking the failure back, lengthens or shortens that rest instead of starting another one
+     */
+    private var restStartedBySetId: Long? = null
+
+    private val isRestTimerRunning get() = restTime.value > 0
 
     /**
      * Marks a set as performed but short of the planned repetitions. A missed set is implicitly
@@ -541,6 +576,9 @@ class WorkoutScreenViewModel(
      * increased in the next session. Refer to [org.librefit.util.WeightProgression].
      */
     fun updateSetFailed(failed: Boolean, id: Long) {
+        val set = exercises.value.flatMap { it.sets }.find { it.id == id } ?: return
+        if (set.failed == failed) return
+
         _exercises.update { currentExercises ->
             currentExercises.map { exercise ->
                 if (exercise.sets.any { it.id == id }) {
@@ -554,6 +592,29 @@ class WorkoutScreenViewModel(
                 } else exercise
             }
         }
+
+        // A failed set calls for a longer rest, refer to restTimeAfterFailing
+        val restStartedByThisSet = isRestTimerRunning && restStartedBySetId == id
+        when {
+            // The set was already completed and its rest is running: that rest is lengthened,
+            // or shortened back when the failure is taken back
+            restStartedByThisSet -> {
+                val delta = if (failed) FAILED_SET_EXTRA_REST else -FAILED_SET_EXTRA_REST
+                // Keeps the rest bar in proportion with the new length
+                initialRestTime = (initialRestTime + delta).coerceAtLeast(1)
+                workoutServiceManager.addToRestTime(delta)
+            }
+
+            // Failing a set straight away completes it, so it starts its rest like completing does
+            failed && !set.completed -> {
+                val restTime = exercises.value.restTimeAfterFailing(id)
+                if (restTime != 0) {
+                    startRestTimer(restTime, startedBySetId = id)
+                }
+                _nextInSuperset.update { exercises.value.nextInSupersetRound(id) }
+            }
+        }
+
         syncToRepository()
     }
     fun deleteSet(id: Long) {
@@ -689,11 +750,8 @@ class WorkoutScreenViewModel(
     private fun observeChanges() {
         viewModelScope.launch(mainDispatcher) {
             WorkoutService.restTime.collect { newRestTime ->
-                // When timer is over and screen is visible, it plays alert sound only by respecting user preference
-                if (initialRestTime != 1 && newRestTime == 0 && isFocused) {
-                    if (userPreferences.restTimerSoundOn.value) {
-                        soundPlayer.playAlert()
-                    }
+                // The alert sound is played by WorkoutService, so that it plays with the screen off
+                if (initialRestTime != 1 && newRestTime == 0) {
                     initialRestTime = 1
                 }
             }
@@ -723,8 +781,9 @@ class WorkoutScreenViewModel(
     }
 
 
-    fun startRestTimer(initialValue: Int) {
+    fun startRestTimer(initialValue: Int, startedBySetId: Long? = null) {
         initialRestTime = initialValue
+        restStartedBySetId = startedBySetId
         workoutServiceManager.startRestTimer(initialValue)
     }
 
