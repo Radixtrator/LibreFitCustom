@@ -62,6 +62,7 @@ import kotlin.time.Duration.Companion.milliseconds
  * - [WorkoutServiceActions.START_REST_TIMER]: Starts the rest timer with the specified initial time with [startRestTimer]
  * - [WorkoutServiceActions.ADD_TEN_SECONDS_TO_REST_TIMER]: Adds ten seconds to rest timer with [modifyRestTimer].
  * - [WorkoutServiceActions.SUBTRACT_TEN_SECONDS_TO_REST_TIMER]: Subtract ten seconds to rest timer with [modifyRestTimer].
+ * - [WorkoutServiceActions.ADD_SECONDS_TO_REST_TIMER]: Adds [EXTRA_REST_TIME_DELTA] seconds, or removes them when negative, to the rest timer with [modifyRestTimer].
  * - [WorkoutServiceActions.WORKOUT_FOCUS]: Updates [isFocused] based on the focus state of [org.librefit.ui.screens.workout.WorkoutScreen].
  * - [WorkoutServiceActions.STOP_SERVICE]: It calls [stopService] and resets all timers.
  *
@@ -99,6 +100,7 @@ class WorkoutService : Service() {
         const val EXTRA_ADD_TEN_SECONDS = "EXTRA_ADD_TEN_SECONDS"
         const val EXTRA_IS_FOCUSED = "EXTRA_IS_FOCUSED"
         const val EXTRA_SET_ELAPSED_TIME = "EXTRA_SET_ELAPSED_TIME"
+        const val EXTRA_REST_TIME_DELTA = "EXTRA_REST_TIME_DELTA"
     }
 
     private var initialRestTime = 0
@@ -162,11 +164,15 @@ class WorkoutService : Service() {
             }
 
             WorkoutServiceActions.ADD_TEN_SECONDS_TO_REST_TIMER -> {
-                modifyRestTimer(true)
+                modifyRestTimer(10)
             }
 
             WorkoutServiceActions.SUBTRACT_TEN_SECONDS_TO_REST_TIMER -> {
-                modifyRestTimer(false)
+                modifyRestTimer(-10)
+            }
+
+            WorkoutServiceActions.ADD_SECONDS_TO_REST_TIMER -> {
+                modifyRestTimer(intent?.getIntExtra(EXTRA_REST_TIME_DELTA, 0) ?: 0)
             }
 
             WorkoutServiceActions.WORKOUT_FOCUS -> {
@@ -280,15 +286,13 @@ class WorkoutService : Service() {
         }
     }
 
-    private fun modifyRestTimer(addTenSeconds: Boolean) {
-        if (restTimerJob?.isActive != true) return
+    private fun modifyRestTimer(deltaSeconds: Int) {
+        if (restTimerJob?.isActive != true || deltaSeconds == 0) return
 
         val now = SystemClock.elapsedRealtime()
-        restTimerEnd = if (addTenSeconds) {
-            restTimerEnd + 10_000L
-        } else {
-            (restTimerEnd - 10_000L).coerceAtLeast(now)
-        }
+        restTimerEnd = (restTimerEnd + deltaSeconds * 1000L).coerceAtLeast(now)
+        // Keeps the progress of the notification in proportion with the longer rest
+        if (deltaSeconds > 0) initialRestTime += deltaSeconds
         _restTime.update { ((restTimerEnd - now + 999) / 1000).toInt().coerceAtLeast(0) }
 
         // Restarts the loop, so it wakes up on time for the new end, and extends the wake lock

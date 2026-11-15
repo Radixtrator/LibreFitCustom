@@ -32,6 +32,23 @@ fun List<UiExerciseWithSets>.restTimeAfterCompleting(setId: Long): Int {
     return if (isRoundDone) superset.maxOf { it.exercise.restTime } else 0
 }
 
+/** The extra rest, in seconds, taken after a failed set, refer to [restTimeAfterFailing] */
+const val FAILED_SET_EXTRA_REST = 30
+
+/**
+ * Returns the rest time, in seconds, to start once the set with id [setId] has been failed, i.e.
+ * performed but short of the planned repetitions, or zero when there is no rest to take.
+ *
+ * It is the rest of [restTimeAfterCompleting] lengthened by [FAILED_SET_EXTRA_REST], to recover
+ * from training to failure. Within a superset, it is the set that closes the round which decides:
+ * the round rest is lengthened when that set is failed, and failing a set in the middle of a round
+ * still gives no rest. An exercise with no rest planned gets none.
+ */
+fun List<UiExerciseWithSets>.restTimeAfterFailing(setId: Long): Int {
+    val restTime = restTimeAfterCompleting(setId)
+    return if (restTime > 0) restTime + FAILED_SET_EXTRA_REST else 0
+}
+
 /**
  * Where to go once the set with id [setId] has been completed without a rest, i.e. in the middle of
  * a round of a superset, refer to [restTimeAfterCompleting].

@@ -53,7 +53,9 @@ import org.librefit.ui.models.mappers.toUi
 import org.librefit.ui.models.moveExercise
 import org.librefit.ui.models.nextInSupersetRound
 import org.librefit.ui.models.prefilledFrom
+import org.librefit.ui.models.FAILED_SET_EXTRA_REST
 import org.librefit.ui.models.restTimeAfterCompleting
+import org.librefit.ui.models.restTimeAfterFailing
 import org.librefit.ui.models.withAmrap
 import org.librefit.ui.models.withNormalizedExercisePositions
 import org.librefit.ui.models.withRoutineEdits
@@ -554,11 +556,19 @@ class WorkoutScreenViewModel(
         // restTimeAfterCompleting
         val restTime = if (completed) exercises.value.restTimeAfterCompleting(id) else 0
         if (restTime != 0) {
-            startRestTimer(restTime)
+            startRestTimer(restTime, startedBySetId = id)
         }
         _nextInSuperset.update { if (completed) exercises.value.nextInSupersetRound(id) else null }
         syncToRepository()
     }
+
+    /**
+     * The id of the set whose completion started the running rest timer, so that failing it, or
+     * taking the failure back, lengthens or shortens that rest instead of starting another one
+     */
+    private var restStartedBySetId: Long? = null
+
+    private val isRestTimerRunning get() = restTime.value > 0
 
     /**
      * Marks a set as performed but short of the planned repetitions. A missed set is implicitly
@@ -566,6 +576,9 @@ class WorkoutScreenViewModel(
      * increased in the next session. Refer to [org.librefit.util.WeightProgression].
      */
     fun updateSetFailed(failed: Boolean, id: Long) {
+        val set = exercises.value.flatMap { it.sets }.find { it.id == id } ?: return
+        if (set.failed == failed) return
+
         _exercises.update { currentExercises ->
             currentExercises.map { exercise ->
                 if (exercise.sets.any { it.id == id }) {
@@ -579,6 +592,29 @@ class WorkoutScreenViewModel(
                 } else exercise
             }
         }
+
+        // A failed set calls for a longer rest, refer to restTimeAfterFailing
+        val restStartedByThisSet = isRestTimerRunning && restStartedBySetId == id
+        when {
+            // The set was already completed and its rest is running: that rest is lengthened,
+            // or shortened back when the failure is taken back
+            restStartedByThisSet -> {
+                val delta = if (failed) FAILED_SET_EXTRA_REST else -FAILED_SET_EXTRA_REST
+                // Keeps the rest bar in proportion with the new length
+                initialRestTime = (initialRestTime + delta).coerceAtLeast(1)
+                workoutServiceManager.addToRestTime(delta)
+            }
+
+            // Failing a set straight away completes it, so it starts its rest like completing does
+            failed && !set.completed -> {
+                val restTime = exercises.value.restTimeAfterFailing(id)
+                if (restTime != 0) {
+                    startRestTimer(restTime, startedBySetId = id)
+                }
+                _nextInSuperset.update { exercises.value.nextInSupersetRound(id) }
+            }
+        }
+
         syncToRepository()
     }
     fun deleteSet(id: Long) {
@@ -745,8 +781,9 @@ class WorkoutScreenViewModel(
     }
 
 
-    fun startRestTimer(initialValue: Int) {
+    fun startRestTimer(initialValue: Int, startedBySetId: Long? = null) {
         initialRestTime = initialValue
+        restStartedBySetId = startedBySetId
         workoutServiceManager.startRestTimer(initialValue)
     }
 

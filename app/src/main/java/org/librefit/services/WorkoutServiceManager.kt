@@ -13,6 +13,7 @@ import android.content.Intent
 import org.librefit.enums.WorkoutServiceActions
 import org.librefit.services.WorkoutService.Companion.EXTRA_INITIAL_REST_TIME
 import org.librefit.services.WorkoutService.Companion.EXTRA_IS_FOCUSED
+import org.librefit.services.WorkoutService.Companion.EXTRA_REST_TIME_DELTA
 import org.librefit.services.WorkoutService.Companion.EXTRA_SET_ELAPSED_TIME
 
 class WorkoutServiceManager(
@@ -59,6 +60,18 @@ class WorkoutServiceManager(
             } else {
                 WorkoutServiceActions.SUBTRACT_TEN_SECONDS_TO_REST_TIMER
             }.string
+        }
+        context.startForegroundService(serviceIntent)
+    }
+
+    /**
+     * Adds [seconds] to the running rest timer, or removes them when negative. It does nothing
+     * when no rest timer is running.
+     */
+    fun addToRestTime(seconds: Int) {
+        val serviceIntent = workoutServiceIntent.apply {
+            action = WorkoutServiceActions.ADD_SECONDS_TO_REST_TIMER.string
+            putExtra(EXTRA_REST_TIME_DELTA, seconds)
         }
         context.startForegroundService(serviceIntent)
     }
