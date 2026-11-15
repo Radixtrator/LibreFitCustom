@@ -37,6 +37,7 @@ class SettingsScreenViewModel(
     val isSupporter = userPreferences.isSupporter
     val isWorkoutHeaderSticky = userPreferences.isWorkoutHeaderSticky
     val useScrollWheelForInput = userPreferences.useScrollWheelForInput
+    val showLibrary = userPreferences.showLibrary
     val showExercisesImages = userPreferences.showExercisesImages
     val dismissScrollWheelInputAutomatically = userPreferences.dismissScrollWheelInputAutomatically
     val unitSystem = userPreferences.unitSystem
@@ -64,6 +65,10 @@ class SettingsScreenViewModel(
 
     fun saveIsWorkoutHeaderSticky(isSticky: Boolean) {
         viewModelScope.launch { userPreferences.saveIsWorkoutHeaderSticky(isSticky) }
+    }
+
+    fun saveShowLibrary(show: Boolean) {
+        viewModelScope.launch { userPreferences.saveShowLibrary(show) }
     }
 
     fun saveUseScrollWheelForInput(useScroll: Boolean) {

@@ -21,14 +21,19 @@ import androidx.compose.material3.ShortNavigationBar
 import androidx.compose.material3.ShortNavigationBarItem
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.key
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.buildAnnotatedString
 import kotlinx.collections.immutable.persistentListOf
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import kotlinx.coroutines.launch
+import org.koin.compose.koinInject
 import org.librefit.R
+import org.librefit.db.repository.UserPreferencesRepository
 import org.librefit.enums.pages.MainScreenPages
 import org.librefit.ui.components.GetAppNameInAnnotatedBuilder
 import org.librefit.ui.components.LibreFitScaffold
@@ -54,12 +59,58 @@ fun SharedTransitionScope.MainScreen(
     onNavigateToStatisticsScreen: () -> Unit,
     onNavigateToMeasurementsScreen: () -> Unit,
     onNavigateToCalendarScreen: () -> Unit,
+    animatedVisibilityScope: AnimatedVisibilityScope,
+    userPreferences: UserPreferencesRepository = koinInject()
+) {
+    val showLibrary by userPreferences.showLibrary.collectAsStateWithLifecycle()
+
+    val pages = remember(showLibrary) {
+        MainScreenPages.entries.filter { showLibrary || it != MainScreenPages.LIBRARY }
+    }
+
+    // Recreate the pager when the pages change, so it reopens on Home instead of
+    // landing on whichever page now sits at the old index
+    key(pages) {
+        MainScreenContent(
+            pages = pages,
+            onNavigateToAboutScreen = onNavigateToAboutScreen,
+            onNavigateToSettingsScreen = onNavigateToSettingsScreen,
+            onNavigateToEditWorkout = onNavigateToEditWorkout,
+            onNavigateToInfoWorkout = onNavigateToInfoWorkout,
+            onNavigateToRequestPermissionScreen = onNavigateToRequestPermissionScreen,
+            onNavigateToWorkout = onNavigateToWorkout,
+            onNavigateToTutorialScreen = onNavigateToTutorialScreen,
+            onNavigateToCompleteWorkoutTutorial = onNavigateToCompleteWorkoutTutorial,
+            onNavigateToExercisesScreen = onNavigateToExercisesScreen,
+            onNavigateToStatisticsScreen = onNavigateToStatisticsScreen,
+            onNavigateToMeasurementsScreen = onNavigateToMeasurementsScreen,
+            onNavigateToCalendarScreen = onNavigateToCalendarScreen,
+            animatedVisibilityScope = animatedVisibilityScope
+        )
+    }
+}
+
+@OptIn(ExperimentalSharedTransitionApi::class, ExperimentalMaterial3ExpressiveApi::class)
+@Composable
+private fun SharedTransitionScope.MainScreenContent(
+    pages: List<MainScreenPages>,
+    onNavigateToAboutScreen: () -> Unit,
+    onNavigateToSettingsScreen: () -> Unit,
+    onNavigateToEditWorkout: () -> Unit,
+    onNavigateToInfoWorkout: (Long) -> Unit,
+    onNavigateToRequestPermissionScreen: (Long) -> Unit,
+    onNavigateToWorkout: (Long) -> Unit,
+    onNavigateToTutorialScreen: () -> Unit,
+    onNavigateToCompleteWorkoutTutorial: () -> Unit,
+    onNavigateToExercisesScreen: () -> Unit,
+    onNavigateToStatisticsScreen: () -> Unit,
+    onNavigateToMeasurementsScreen: () -> Unit,
+    onNavigateToCalendarScreen: () -> Unit,
     animatedVisibilityScope: AnimatedVisibilityScope
 ) {
-
     val pagerState = rememberPagerState(
-        initialPage = MainScreenPages.HOME.ordinal,
-        pageCount = { MainScreenPages.entries.size }
+        initialPage = pages.indexOf(MainScreenPages.HOME),
+        pageCount = { pages.size }
     )
 
     val coroutine = rememberCoroutineScope()
@@ -86,7 +137,7 @@ fun SharedTransitionScope.MainScreen(
             painterResource(R.drawable.ic_settings)
         ),
         actionsElevated = persistentListOf(false, false),
-        fabAction = if (pagerState.currentPage == MainScreenPages.HOME.ordinal) {
+        fabAction = if (pages.getOrNull(pagerState.currentPage) == MainScreenPages.HOME) {
             onNavigateToEditWorkout
         } else null,
         fabIcon = painterResource(R.drawable.ic_add),
@@ -94,11 +145,11 @@ fun SharedTransitionScope.MainScreen(
         fabText = stringResource(R.string.create_routine),
         bottomBar = {
             ShortNavigationBar {
-                MainScreenPages.entries.forEach { page ->
-                    val selected = pagerState.currentPage == page.ordinal
+                pages.forEachIndexed { index, page ->
+                    val selected = pagerState.currentPage == index
                     ShortNavigationBarItem(
                         selected = selected,
-                        onClick = { goToPage(page.ordinal) },
+                        onClick = { goToPage(index) },
                         icon = {
                             Icon(
                                 painter = painterResource(
@@ -138,9 +189,9 @@ fun SharedTransitionScope.MainScreen(
             beyondViewportPageCount = 1,
             contentPadding = innerPadding
         ) { pageIndex ->
-            when (pageIndex) {
-                0 -> LibraryScreen()
-                1 -> HomeScreen(
+            when (pages[pageIndex]) {
+                MainScreenPages.LIBRARY -> LibraryScreen()
+                MainScreenPages.HOME -> HomeScreen(
                     onNavigateToInfoWorkout = onNavigateToInfoWorkout,
                     onNavigateToRequestPermissionScreen = onNavigateToRequestPermissionScreen,
                     onNavigateToWorkout = onNavigateToWorkout,
@@ -148,7 +199,7 @@ fun SharedTransitionScope.MainScreen(
                     animatedVisibilityScope = animatedVisibilityScope
                 )
 
-                2 -> ProfileScreen(
+                MainScreenPages.PROFILE -> ProfileScreen(
                     onNavigateToExercisesScreen = onNavigateToExercisesScreen,
                     onNavigateToStatisticsScreen = onNavigateToStatisticsScreen,
                     onNavigateToMeasurementsScreen = onNavigateToMeasurementsScreen,
@@ -157,7 +208,6 @@ fun SharedTransitionScope.MainScreen(
                     onNavigateToTutorialScreen = onNavigateToCompleteWorkoutTutorial,
                     animatedVisibilityScope = animatedVisibilityScope
                 )
-                else -> error("Invalid page index in main screen: $pageIndex. Number of pages: ${pagerState.pageCount}")
             }
         }
     }

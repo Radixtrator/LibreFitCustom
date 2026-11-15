@@ -54,6 +54,7 @@ private val SHOW_EXERCISES_IMAGES_KEY = booleanPreferencesKey("show_exercises_im
 private val UNIT_SYSTEM_KEY = stringPreferencesKey("unit_system")
 private val DEFAULT_BAR_WEIGHT_KEY = doublePreferencesKey("default_bar_weight")
 private val ROUTINE_UPDATE_MODE_KEY = stringPreferencesKey("routine_update_mode")
+private val SHOW_LIBRARY_KEY = booleanPreferencesKey("show_library")
 /**
  * Central repository managing application-level preferences, including theme, unit systems, and language.
  *
@@ -150,6 +151,15 @@ class UserPreferencesRepository(
             scope = applicationScope,
             started = SharingStarted.Eagerly,
             initialValue = false
+        )
+
+    // On unless turned off: the Library tab is shown in the main screen by default
+    val showLibrary: StateFlow<Boolean> = dataStore.data
+        .map { preferences -> preferences[SHOW_LIBRARY_KEY] != false }
+        .stateIn(
+            scope = applicationScope,
+            started = SharingStarted.Eagerly,
+            initialValue = true
         )
 
     val useScrollWheelForInput: StateFlow<Boolean> = dataStore.data
@@ -313,6 +323,10 @@ class UserPreferencesRepository(
 
     suspend fun saveIsWorkoutHeaderSticky(isSticky: Boolean) {
         dataStore.edit { preferences -> preferences[IS_WORKOUT_HEADER_STICKY_KEY] = isSticky }
+    }
+
+    suspend fun saveShowLibrary(show: Boolean) {
+        dataStore.edit { preferences -> preferences[SHOW_LIBRARY_KEY] = show }
     }
 
     suspend fun saveUseScrollWheelForInput(useScroll: Boolean) {
