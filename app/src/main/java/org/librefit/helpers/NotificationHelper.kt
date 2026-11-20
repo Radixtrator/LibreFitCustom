@@ -176,7 +176,7 @@ class NotificationHelper(
         if (isResting) {
             applyRestTimerLiveUpdate(builder, restTime, initialRestTime)
         } else {
-            clearRestTimerLiveUpdate(builder)
+            applyWorkoutLiveUpdate(builder, timeInSeconds, isStopwatchPaused)
         }
 
         if (isResting) {
@@ -265,14 +265,35 @@ class NotificationHelper(
             .setChronometerCountDown(true)
     }
 
-    private fun clearRestTimerLiveUpdate(builder: NotificationCompat.Builder) {
+    /**
+     * Keeps the workout notification a Live Update between rests, so the status bar chip and the
+     * Samsung Now Bar show the workout for its whole length instead of only while resting.
+     *
+     * The elapsed time is shown as a counting-up chronometer started at the beginning of the
+     * workout, so the chip keeps ticking on its own. While the stopwatch is paused there is no
+     * chronometer and the chip shows only the icon.
+     */
+    private fun applyWorkoutLiveUpdate(
+        builder: NotificationCompat.Builder,
+        timeInSeconds: Int,
+        isStopwatchPaused: Boolean,
+    ) {
         builder
             .setStyle(null)
             .setProgress(0, 0, false)
-            .setRequestPromotedOngoing(false)
-            .setUsesChronometer(false)
+            .setRequestPromotedOngoing(true)
             .setChronometerCountDown(false)
-            .setShowWhen(false)
+
+        if (isStopwatchPaused) {
+            builder
+                .setUsesChronometer(false)
+                .setShowWhen(false)
+        } else {
+            builder
+                .setShowWhen(true)
+                .setWhen(System.currentTimeMillis() - timeInSeconds * 1000L)
+                .setUsesChronometer(true)
+        }
     }
 
     private lateinit var timerNotification: Notification

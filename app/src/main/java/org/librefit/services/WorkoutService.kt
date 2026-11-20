@@ -245,7 +245,13 @@ class WorkoutService : Service() {
 
     private fun pauseStopwatch() {
         _isStopwatchPaused.update { true }
-        notificationHelper.notifyOngoingWorkout(timeElapsed.value, isStopwatchPaused.value)
+        // The rest timer keeps running while the stopwatch is paused, so its Live Update stays
+        notificationHelper.notifyOngoingWorkout(
+            timeElapsed.value,
+            isStopwatchPaused.value,
+            restTime.value,
+            initialRestTime
+        )
     }
 
 

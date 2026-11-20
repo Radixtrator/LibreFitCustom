@@ -12,6 +12,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Option to update routines with the values of completed sets at the end of a workout [#44](https://github.com/LibreFitOrg/LibreFit/issues/44)
 - Rest timer shows as a Live Update on Android 16+ (status bar chip, and the Now Bar on Samsung One UI 8/9)
 - Failing a set rests 30 seconds longer, including the rest after a superset round closed by a failed set
+- The whole workout shows as a Live Update, with its elapsed time in the status bar chip, not only the rest timer
+- Live updates setting that shows whether they are allowed and opens the system page to allow them
+- AMRAP sets stay AMRAP in the next session, with the same target, and are planned for the target instead of the reps reached
 
 ### Changed
 
@@ -28,6 +31,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Fixed
 
 - Rest-over sound not playing over music or with the phone locked, and rest timer running late with the screen off
+- Pausing the workout during a rest dropping the rest timer Live Update
 
 ## [0.5.0] - 2026-09-18
 

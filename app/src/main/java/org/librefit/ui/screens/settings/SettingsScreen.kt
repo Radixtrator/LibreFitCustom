@@ -38,15 +38,18 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.painter.Painter
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
+import androidx.lifecycle.compose.LifecycleResumeEffect
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import org.koin.androidx.compose.koinViewModel
 import org.librefit.R
+import org.librefit.helpers.LiveUpdates
 import org.librefit.enums.userPreferences.DialogPreference
 import org.librefit.enums.userPreferences.Language
 import org.librefit.enums.userPreferences.RoutineUpdateMode
@@ -288,6 +291,10 @@ private fun SettingsScreenContent(
                 )
             }
 
+            if (LiveUpdates.isSupported) {
+                item { LiveUpdatesSettingItem() }
+            }
+
             item {
                 SettingItem(
                     isChecked = isWorkoutHeaderSticky,
@@ -353,6 +360,31 @@ private fun SettingsScreenContent(
             }
         }
     }
+}
+
+/**
+ * Shows whether the workout notification can be a Live Update, and opens the system setting that
+ * controls it. The state is read again whenever the screen comes back from that setting.
+ */
+@Composable
+private fun LiveUpdatesSettingItem() {
+    val context = LocalContext.current
+    var canPost by remember { mutableStateOf(LiveUpdates.canPost(context)) }
+
+    LifecycleResumeEffect(Unit) {
+        canPost = LiveUpdates.canPost(context)
+        onPauseOrDispose { }
+    }
+
+    SettingItem(
+        onClick = { LiveUpdates.openSettings(context) },
+        icon = painterResource(R.drawable.ic_timer),
+        settingName = stringResource(R.string.live_updates),
+        settingDesc = stringResource(
+            if (canPost) R.string.live_updates_on_desc else R.string.live_updates_off_desc
+        ),
+        isChecked = canPost
+    )
 }
 
 @OptIn(ExperimentalMaterial3ExpressiveApi::class)
