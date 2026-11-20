@@ -14,6 +14,10 @@ This Application does not collect precise information about the location of your
 
 Since the Application does not collect any information, no data is shared with third parties.
 
+**Health Connect**
+
+If you turn on Health Connect in the settings and grant the permission, the Application writes your completed workouts (date, duration, title and notes) to Health Connect on your device, so that other apps you allow can read them. The Application does not read any data from Health Connect. You can turn this off in the settings, or revoke the permission in Health Connect, at any time.
+
 **What are my opt-out rights?**
 
 You can stop all collection of information by the Application easily by uninstalling it. You may use the standard uninstall processes as may be available as part of your mobile device or via the mobile application marketplace or network.

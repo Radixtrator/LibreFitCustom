@@ -13,6 +13,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Rest timer shows as a Live Update on Android 16+ (status bar chip, and the Now Bar on Samsung One UI 8/9)
 - Failing a set rests 30 seconds longer, including the rest after a superset round closed by a failed set
 - The whole workout shows as a Live Update, with its elapsed time in the status bar chip, not only the rest timer
+- Health Connect sync, off by default: completed workouts are written as strength training sessions, updated when edited and removed when deleted, and turning it on writes the past workouts too
 - Live updates setting that shows whether they are allowed and opens the system page to allow them
 - AMRAP sets stay AMRAP in the next session, with the same target, and are planned for the target instead of the reps reached
 

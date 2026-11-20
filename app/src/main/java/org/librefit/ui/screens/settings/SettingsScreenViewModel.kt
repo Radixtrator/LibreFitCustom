@@ -16,18 +16,23 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.distinctUntilChanged
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import org.librefit.db.repository.UserPreferencesRepository
+import org.librefit.db.repository.WorkoutRepository
 import org.librefit.enums.userPreferences.DialogPreference
 import org.librefit.enums.userPreferences.Language
 import org.librefit.enums.userPreferences.RoutineUpdateMode
 import org.librefit.enums.userPreferences.ThemeMode
 import org.librefit.enums.userPreferences.UnitSystem
+import org.librefit.helpers.HealthConnectSync
 
 class SettingsScreenViewModel(
     private val userPreferences: UserPreferencesRepository,
+    private val workoutRepository: WorkoutRepository,
+    private val healthConnectSync: HealthConnectSync,
 ) : ViewModel() {
     val themeMode = userPreferences.themeMode
     val materialMode = userPreferences.materialMode
@@ -89,6 +94,33 @@ class SettingsScreenViewModel(
 
     fun saveUnitSystem(unitSystem: UnitSystem) {
         viewModelScope.launch { userPreferences.saveUnitSystem(unitSystem) }
+    }
+
+    val healthConnectSyncOn = userPreferences.healthConnectSyncOn
+
+    fun healthConnectAvailability(): HealthConnectSync.Availability =
+        healthConnectSync.availability()
+
+    suspend fun hasHealthConnectPermissions(): Boolean = healthConnectSync.hasPermissions()
+
+    fun openHealthConnectInStore(context: android.content.Context) {
+        healthConnectSync.openProviderInStore(context)
+    }
+
+    fun disableHealthConnectSync() {
+        viewModelScope.launch { userPreferences.saveHealthConnectSyncOn(false) }
+    }
+
+    /**
+     * Turns the sync on once the permissions are granted, and writes the workouts completed so
+     * far, so the history in Health Connect starts complete. Writing a workout twice replaces it.
+     */
+    fun enableHealthConnectSync(grantedPermissions: Set<String>) {
+        if (!grantedPermissions.containsAll(HealthConnectSync.PERMISSIONS)) return
+        viewModelScope.launch {
+            userPreferences.saveHealthConnectSyncOn(true)
+            healthConnectSync.syncAll(workoutRepository.completedWorkouts.first())
+        }
     }
 
     fun saveRoutineUpdateMode(routineUpdateMode: RoutineUpdateMode) {

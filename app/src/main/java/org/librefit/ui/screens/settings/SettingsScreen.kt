@@ -9,6 +9,8 @@
 package org.librefit.ui.screens.settings
 
 import android.os.Build
+import android.widget.Toast
+import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.ExperimentalSharedTransitionApi
 import androidx.compose.animation.animateContentSize
@@ -32,6 +34,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
@@ -46,9 +49,12 @@ import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.LifecycleResumeEffect
+import androidx.health.connect.client.PermissionController
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import kotlinx.coroutines.launch
 import org.koin.androidx.compose.koinViewModel
 import org.librefit.R
+import org.librefit.helpers.HealthConnectSync
 import org.librefit.helpers.LiveUpdates
 import org.librefit.enums.userPreferences.DialogPreference
 import org.librefit.enums.userPreferences.Language
@@ -96,6 +102,39 @@ fun SettingsScreen(
     val useScrollWheelForInput by viewModel.useScrollWheelForInput.collectAsStateWithLifecycle()
 
     val showLibrary by viewModel.showLibrary.collectAsStateWithLifecycle()
+
+    val healthConnectSyncOn by viewModel.healthConnectSyncOn.collectAsStateWithLifecycle()
+
+    val context = LocalContext.current
+    val coroutineScope = rememberCoroutineScope()
+    val healthConnectUnavailableMessage = stringResource(R.string.health_connect_unavailable)
+    val healthConnectPermissionLauncher = rememberLauncherForActivityResult(
+        PermissionController.createRequestPermissionResultContract()
+    ) { granted ->
+        viewModel.enableHealthConnectSync(granted)
+    }
+
+    val onHealthConnectSyncClick: () -> Unit = {
+        if (healthConnectSyncOn) {
+            viewModel.disableHealthConnectSync()
+        } else {
+            when (viewModel.healthConnectAvailability()) {
+                HealthConnectSync.Availability.AVAILABLE -> coroutineScope.launch {
+                    if (viewModel.hasHealthConnectPermissions()) {
+                        viewModel.enableHealthConnectSync(HealthConnectSync.PERMISSIONS)
+                    } else {
+                        healthConnectPermissionLauncher.launch(HealthConnectSync.PERMISSIONS)
+                    }
+                }
+
+                HealthConnectSync.Availability.UPDATE_REQUIRED ->
+                    viewModel.openHealthConnectInStore(context)
+
+                HealthConnectSync.Availability.UNAVAILABLE ->
+                    Toast.makeText(context, healthConnectUnavailableMessage, Toast.LENGTH_LONG).show()
+            }
+        }
+    }
 
     val showExercisesImages by viewModel.showExercisesImages.collectAsStateWithLifecycle()
 
@@ -145,6 +184,8 @@ fun SettingsScreen(
         showExercisesImages = showExercisesImages,
         isWorkoutHeaderSticky = isWorkoutHeaderSticky,
         showLibrary = showLibrary,
+        healthConnectSyncOn = healthConnectSyncOn,
+        onHealthConnectSyncClick = onHealthConnectSyncClick,
         dismissScrollWheelInputAutomatically = dismissScrollWheelInputAutomatically,
         unitSystem = unitSystem,
         routineUpdateMode = routineUpdateMode,
@@ -176,6 +217,8 @@ private fun SettingsScreenContent(
     isSupporter: Boolean,
     isWorkoutHeaderSticky: Boolean,
     showLibrary: Boolean,
+    healthConnectSyncOn: Boolean,
+    onHealthConnectSyncClick: () -> Unit,
     useScrollWheelForInput: Boolean,
     showExercisesImages: Boolean?,
     dismissScrollWheelInputAutomatically: Boolean,
@@ -288,6 +331,18 @@ private fun SettingsScreenContent(
                         id = if (restTimerSoundOn) R.string.rest_timer_sound_on_desc else R.string.rest_timer_sound_off_desc
                     ),
                     isChecked = restTimerSoundOn
+                )
+            }
+
+            item {
+                SettingItem(
+                    isChecked = healthConnectSyncOn,
+                    onClick = onHealthConnectSyncClick,
+                    icon = painterResource(R.drawable.ic_favorite),
+                    settingName = stringResource(R.string.health_connect),
+                    settingDesc = stringResource(
+                        if (healthConnectSyncOn) R.string.health_connect_on_desc else R.string.health_connect_off_desc
+                    )
                 )
             }
 
@@ -477,6 +532,8 @@ fun SettingsScreenPreview() {
             isSupporter = Random.nextBoolean(),
             isWorkoutHeaderSticky = isWorkoutHeaderSticky,
             showLibrary = showLibrary,
+            healthConnectSyncOn = false,
+            onHealthConnectSyncClick = {},
             useScrollWheelForInput = useScrollWheelForInput,
             showExercisesImages = displayExercisesImages,
             dismissScrollWheelInputAutomatically = dismissScrollWheelInputAutomatically,

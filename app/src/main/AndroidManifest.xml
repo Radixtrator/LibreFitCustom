@@ -11,6 +11,8 @@
 
     <queries>
         <package android:name="org.librefit.companion" />
+        <!-- Health Connect is a separate app on Android 13 and lower -->
+        <package android:name="com.google.android.apps.healthdata" />
     </queries>
 
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
@@ -20,6 +22,8 @@
     <uses-permission android:name="android.permission.POST_PROMOTED_NOTIFICATIONS" />
     <!-- Keeps the rest timer running on time while the screen is off -->
     <uses-permission android:name="android.permission.WAKE_LOCK" />
+    <!-- Writes completed workouts to Health Connect, only when turned on in settings -->
+    <uses-permission android:name="android.permission.health.WRITE_EXERCISE" />
 
     <application
         android:allowBackup="true"
@@ -67,6 +71,30 @@
                 <category android:name="android.intent.category.DEFAULT" />
             </intent-filter>
         </activity>
+
+        <!-- Health Connect shows the privacy notice as the rationale of its permissions, and does
+             not offer them without it. On Android 14+ it is opened through the permission usage
+             action with the health permissions category. -->
+        <activity-alias
+            android:name=".activities.HealthPermissionsUsageActivity"
+            android:exported="true"
+            android:permission="android.permission.START_VIEW_PERMISSION_USAGE"
+            android:targetActivity=".activities.PrivacyActivity">
+            <intent-filter>
+                <action android:name="android.intent.action.VIEW_PERMISSION_USAGE" />
+                <category android:name="android.intent.category.HEALTH_PERMISSIONS" />
+            </intent-filter>
+        </activity-alias>
+
+        <!-- On Android 13 and lower the Health Connect app opens the rationale itself -->
+        <activity-alias
+            android:name=".activities.HealthPermissionsRationaleActivity"
+            android:exported="true"
+            android:targetActivity=".activities.PrivacyActivity">
+            <intent-filter>
+                <action android:name="androidx.health.ACTION_SHOW_PERMISSIONS_RATIONALE" />
+            </intent-filter>
+        </activity-alias>
 
         <activity
             android:name=".activities.ErrorActivity"

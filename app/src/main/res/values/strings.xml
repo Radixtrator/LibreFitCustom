@@ -364,6 +364,11 @@
     <string name="rest_timer_sound">Rest timer sound</string>
     <string name="rest_timer_sound_on_desc">Play a sound when rest timer ends</string>
     <string name="rest_timer_sound_off_desc">Rest timer alerts will be silent</string>
+    <string name="health_connect">Health Connect</string>
+    <string name="health_connect_on_desc">Completed workouts are shared with Health Connect</string>
+    <string name="health_connect_off_desc">Share completed workouts with Health Connect, so other health and fitness apps can see them</string>
+    <string name="health_connect_unavailable">Health Connect is not available on this device</string>
+    <string name="privacy_notice_health_connect_perm">**Health Connect**: If turned on in settings, this permission lets LibreFit write your completed workouts (date, duration, title and notes) to Health Connect, so other health and fitness apps you allow can read them. LibreFit does not read any data from Health Connect.</string>
     <string name="live_updates">Live updates</string>
     <string name="live_updates_on_desc">The workout and the rest timer are shown in the status bar and on the lock screen</string>
     <string name="live_updates_off_desc">Turned off in system settings. Tap to turn on</string>

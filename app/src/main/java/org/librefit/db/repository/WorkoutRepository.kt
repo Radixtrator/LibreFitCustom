@@ -16,6 +16,7 @@ import org.librefit.db.dao.WorkoutDao
 import org.librefit.db.entity.Workout
 import org.librefit.db.relations.WorkoutWithExercisesAndSets
 import org.librefit.enums.WorkoutState
+import org.librefit.helpers.HealthConnectSync
 import org.librefit.ui.models.UiWorkoutWithExercisesAndSets
 import org.librefit.ui.models.mappers.toUi
 
@@ -26,6 +27,8 @@ import org.librefit.ui.models.mappers.toUi
  * application, providing a clean API for data access.
  *
  * @param workoutDao The [WorkoutDao] instance used to access workout data from the database.
+ * @param healthConnectSync Mirrors the completed workouts saved, edited and deleted here to
+ * Health Connect, when the user turned it on. Refer to [HealthConnectSync].
  * @property completedWorkouts Refer to [WorkoutDao.getWorkoutsByStateAndOrderedByCompleted]
  * @property routines Refer to [WorkoutDao.getWorkoutsByStateOrderedByPosition]
  * @property completedWorkoutsWithExercisesAndSets Refer to [WorkoutDao.getWorkoutsWithExercisesAndSetsByStateAndOrderedByCompleted]
@@ -33,6 +36,7 @@ import org.librefit.ui.models.mappers.toUi
  */
 class WorkoutRepository(
     private val workoutDao: WorkoutDao,
+    private val healthConnectSync: HealthConnectSync? = null,
 ) {
     private val mutex = Mutex()
 
@@ -88,10 +92,12 @@ class WorkoutRepository(
 
     suspend fun updateWorkout(workout: Workout) {
         workoutDao.updateWorkout(workout)
+        healthConnectSync?.sync(workout)
     }
 
     suspend fun deleteWorkout(workout: Workout) {
         workoutDao.deleteWorkout(workout)
+        healthConnectSync?.remove(workout)
     }
 
     /**
@@ -122,7 +128,9 @@ class WorkoutRepository(
     suspend fun addWorkoutWithExercisesAndSets(
         workoutWithExercisesAndSets: WorkoutWithExercisesAndSets
     ): Long {
-        return workoutDao.addWorkoutWithExercisesAndSets(workoutWithExercisesAndSets)
+        val id = workoutDao.addWorkoutWithExercisesAndSets(workoutWithExercisesAndSets)
+        healthConnectSync?.sync(workoutWithExercisesAndSets.workout.copy(id = id))
+        return id
     }
 
 

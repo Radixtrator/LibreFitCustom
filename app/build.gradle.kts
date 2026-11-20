@@ -193,6 +193,9 @@ dependencies {
     // Lottie animations for jetpack compose
     implementation(libs.lottie.compose)
 
+    // Health Connect, to share completed workouts with other health and fitness apps
+    implementation(libs.androidx.health.connect.client)
+
     // Splash screen API
     implementation(libs.androidx.core.splashscreen)
 

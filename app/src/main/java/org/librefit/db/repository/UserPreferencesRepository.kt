@@ -55,6 +55,7 @@ private val UNIT_SYSTEM_KEY = stringPreferencesKey("unit_system")
 private val DEFAULT_BAR_WEIGHT_KEY = doublePreferencesKey("default_bar_weight")
 private val ROUTINE_UPDATE_MODE_KEY = stringPreferencesKey("routine_update_mode")
 private val SHOW_LIBRARY_KEY = booleanPreferencesKey("show_library")
+private val HEALTH_CONNECT_SYNC_KEY = booleanPreferencesKey("health_connect_sync")
 /**
  * Central repository managing application-level preferences, including theme, unit systems, and language.
  *
@@ -154,6 +155,18 @@ class UserPreferencesRepository(
         )
 
     // On unless turned off: the Library tab is shown in the main screen by default
+    /**
+     * Whether completed workouts are written to Health Connect. Off until the user turns it on and
+     * grants the permission. Refer to [org.librefit.helpers.HealthConnectSync].
+     */
+    val healthConnectSyncOn: StateFlow<Boolean> = dataStore.data
+        .map { preferences -> preferences[HEALTH_CONNECT_SYNC_KEY] == true }
+        .stateIn(
+            scope = applicationScope,
+            started = SharingStarted.Eagerly,
+            initialValue = false
+        )
+
     val showLibrary: StateFlow<Boolean> = dataStore.data
         .map { preferences -> preferences[SHOW_LIBRARY_KEY] != false }
         .stateIn(
@@ -323,6 +336,10 @@ class UserPreferencesRepository(
 
     suspend fun saveIsWorkoutHeaderSticky(isSticky: Boolean) {
         dataStore.edit { preferences -> preferences[IS_WORKOUT_HEADER_STICKY_KEY] = isSticky }
+    }
+
+    suspend fun saveHealthConnectSyncOn(isOn: Boolean) {
+        dataStore.edit { preferences -> preferences[HEALTH_CONNECT_SYNC_KEY] = isOn }
     }
 
     suspend fun saveShowLibrary(show: Boolean) {

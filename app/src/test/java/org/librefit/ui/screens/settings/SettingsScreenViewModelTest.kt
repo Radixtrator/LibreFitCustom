@@ -17,10 +17,12 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.test.runTest
 import org.librefit.MainDispatcherRule
 import org.librefit.db.repository.UserPreferencesRepository
+import org.librefit.db.repository.WorkoutRepository
 import org.librefit.enums.userPreferences.Language
 import org.librefit.enums.userPreferences.RoutineUpdateMode
 import org.librefit.enums.userPreferences.ThemeMode
 import org.librefit.enums.userPreferences.UnitSystem
+import org.librefit.helpers.HealthConnectSync
 import kotlin.test.AfterTest
 import kotlin.test.BeforeTest
 import kotlin.test.Test
@@ -95,6 +97,8 @@ class SettingsScreenViewModelTest {
         every { userPreferencesRepository.showExercisesImages } returns showExercisesImages
         every { userPreferencesRepository.unitSystem } returns unitSystem
         every { userPreferencesRepository.routineUpdateMode } returns routineUpdateMode
+        every { userPreferencesRepository.showLibrary } returns MutableStateFlow(true)
+        every { userPreferencesRepository.healthConnectSyncOn } returns MutableStateFlow(false)
 
         every { userPreferencesRepository.saveLanguage(any()) } answers {
             language.value = firstArg()
@@ -128,7 +132,11 @@ class SettingsScreenViewModelTest {
         }
 
         // Arrange: Create the ViewModel instance with the mock repository
-        viewModel = SettingsScreenViewModel(userPreferencesRepository)
+        viewModel = SettingsScreenViewModel(
+            userPreferencesRepository,
+            mockk<WorkoutRepository>(relaxed = true),
+            mockk<HealthConnectSync>(relaxed = true)
+        )
     }
 
     @Test
