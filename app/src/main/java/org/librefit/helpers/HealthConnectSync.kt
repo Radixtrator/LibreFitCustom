@@ -62,13 +62,19 @@ class HealthConnectSync(
 
     private val appContext = context.applicationContext
 
-    private val client: HealthConnectClient? by lazy {
-        if (availability() == Availability.AVAILABLE) {
+    private var cachedClient: HealthConnectClient? = null
+
+    /**
+     * The Health Connect client, or `null` while Health Connect is not available. It is looked up
+     * again until found, since Health Connect can be installed or updated while LibreFit runs.
+     */
+    private val client: HealthConnectClient?
+        get() = cachedClient ?: if (availability() == Availability.AVAILABLE) {
             runCatching { HealthConnectClient.getOrCreate(appContext) }.getOrNull()
+                ?.also { cachedClient = it }
         } else {
             null
         }
-    }
 
     fun availability(): Availability =
         when (runCatching { HealthConnectClient.getSdkStatus(appContext) }.getOrNull()) {
