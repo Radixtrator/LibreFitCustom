@@ -109,6 +109,29 @@ class PreviousSessionPrefillTest {
     }
 
     @Test
+    fun `an AMRAP set of the last session stays AMRAP with its target`() {
+        // The routine does not plan the AMRAP set, it was flagged during the last workout
+        val result = planned().prefilledFrom(
+            previous(done(185.0, 5), done(185.0, 5), amrap(185.0, 8, targetReps = 6))
+        )
+
+        assertEquals(listOf(false, false, true), result.sets.map { it.isAmrap })
+        assertEquals(6, result.sets[2].targetReps)
+        // Planned for the target, not for the reps reached
+        assertEquals(listOf(5, 5, 6), result.sets.map { it.reps })
+    }
+
+    @Test
+    fun `a target planned in the routine wins over the last one`() {
+        val result = planned(amrapLast = true).prefilledFrom(
+            previous(done(185.0, 5), done(185.0, 5), amrap(185.0, 8, targetReps = 6))
+        )
+
+        assertEquals(5, result.sets[2].targetReps)
+        assertEquals(5, result.sets[2].reps)
+    }
+
+    @Test
     fun `beating an AMRAP set by less than double gives the plain increase`() {
         val result = planned(amrapLast = true).prefilledFrom(
             previous(done(185.0, 5), done(185.0, 5), amrap(185.0, 9))

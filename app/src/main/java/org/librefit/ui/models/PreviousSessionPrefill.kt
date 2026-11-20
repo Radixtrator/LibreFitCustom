@@ -21,9 +21,11 @@ import org.librefit.util.WeightProgression
  * - The load is the one lifted last time, raised by [WeightProgression] when every set of that
  *   session was completed without being marked as failed. Doubling the planned repetitions of an
  *   AMRAP set doubles the raise, refer to [WeightProgression.incrementMultiplier].
- * - The repetitions and the duration are the ones performed last time. An AMRAP set, or a set that
- *   was failed last time, keeps the repetitions it is planned for instead, since what was reached
- *   then is not a plan to repeat.
+ * - The repetitions and the duration are the ones performed last time. An AMRAP set is planned for
+ *   its target instead, and a set that was failed last time keeps the repetitions it is planned
+ *   for, since what was reached then is not a plan to repeat.
+ * - A set that was AMRAP last time stays AMRAP, with the same target, so the flag is remembered
+ *   for the exercise even when it was set during the workout rather than in the routine.
  *
  * A set is left as it is when the previous session has no completed set at its position, when the
  * exercise was trained with another [SetMode] back then, or when [shouldPrefill] rejects it.
@@ -53,8 +55,10 @@ fun UiExerciseWithSets.prefilledFrom(
             ) ?: previousSet.load
 
             when (exercise.setMode) {
-                SetMode.LOAD, SetMode.BODYWEIGHT_WITH_LOAD, SetMode.ASSISTED_BODYWEIGHT ->
-                    set.copy(load = load, reps = repsToPlan(set, previousSet))
+                SetMode.LOAD, SetMode.BODYWEIGHT_WITH_LOAD, SetMode.ASSISTED_BODYWEIGHT -> {
+                    val planned = set.withAmrapFrom(previousSet)
+                    planned.copy(load = load, reps = repsToPlan(planned, previousSet))
+                }
 
                 SetMode.BODYWEIGHT -> set.copy(reps = repsToPlan(set, previousSet))
 
@@ -64,5 +68,20 @@ fun UiExerciseWithSets.prefilledFrom(
     )
 }
 
-private fun repsToPlan(set: UiSet, previousSet: Set): Int =
-    if (set.isAmrap || previousSet.isAmrap || previousSet.failed) set.reps else previousSet.reps
+/**
+ * Keeps the AMRAP flag of [previousSet] on the set. A target already planned for the set wins over
+ * the one of the previous session.
+ */
+private fun UiSet.withAmrapFrom(previousSet: Set): UiSet {
+    if (!previousSet.isAmrap) return this
+    return copy(
+        isAmrap = true,
+        targetReps = if (isAmrap && targetReps > 0) targetReps else previousSet.targetReps
+    )
+}
+
+private fun repsToPlan(set: UiSet, previousSet: Set): Int = when {
+    set.isAmrap -> if (set.targetReps > 0) set.targetReps else set.reps
+    previousSet.failed -> set.reps
+    else -> previousSet.reps
+}

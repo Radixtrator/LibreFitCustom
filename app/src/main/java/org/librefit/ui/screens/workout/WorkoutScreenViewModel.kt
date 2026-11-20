@@ -185,6 +185,8 @@ class WorkoutScreenViewModel(
                 val reps = previousSet?.reps ?: 0
                 val load = previousSet?.load ?: Weight.zero()
                 val time = previousSet?.elapsedTime ?: 0
+                val isAmrap = previousSet?.isAmrap ?: false
+                val targetReps = previousSet?.targetReps ?: 0
                 val suggestedLoad = previousSet?.let {
                     WeightProgression.suggestedLoad(
                         previousLoad = load,
@@ -199,14 +201,22 @@ class WorkoutScreenViewModel(
                     SetMode.LOAD -> PreviousPerformanceSet(
                         load = load,
                         reps = reps,
-                        suggestedLoad = suggestedLoad
+                        suggestedLoad = suggestedLoad,
+                        isAmrap = isAmrap,
+                        targetReps = targetReps
                     )
 
-                    SetMode.BODYWEIGHT -> PreviousPerformanceSet(reps = reps)
+                    SetMode.BODYWEIGHT -> PreviousPerformanceSet(
+                        reps = reps,
+                        isAmrap = isAmrap,
+                        targetReps = targetReps
+                    )
                     SetMode.BODYWEIGHT_WITH_LOAD, SetMode.ASSISTED_BODYWEIGHT -> PreviousPerformanceSet(
                         load = load,
                         reps = reps,
-                        suggestedLoad = suggestedLoad
+                        suggestedLoad = suggestedLoad,
+                        isAmrap = isAmrap,
+                        targetReps = targetReps
                     )
 
                     SetMode.DURATION -> PreviousPerformanceSet(time = time)
@@ -224,9 +234,20 @@ class WorkoutScreenViewModel(
                 previousPerformances.value.getOrNull(index)?.getOrNull(setToUpdateIndex)
 
             previousPerformanceSet?.let { values ->
-                val (reps, load, time) = values
+                val (_, load, time) = values
+                val set = eWs.sets[setToUpdateIndex]
+                // An AMRAP set is planned for its target, not for what was reached by going to the
+                // limit. A target already planned for the set wins over the previous one
+                val reps = if (set.isAmrap && set.targetReps > 0) set.targetReps else values.repsToApply
                 // When the previous session was fully completed, apply the progressed load instead
                 val loadToApply = values.suggestedLoad ?: load
+                // A set that was AMRAP last time stays AMRAP, with the target it had
+                if (values.isAmrap && eWs.exercise.setMode.hasLoad) {
+                    if (!set.isAmrap) updateSetIsAmrap(true, setId)
+                    if (values.targetReps > 0 && !(set.isAmrap && set.targetReps > 0)) {
+                        updateSetTargetReps(values.targetReps, setId)
+                    }
+                }
                 when (eWs.exercise.setMode) {
                     SetMode.LOAD -> {
                         updateSetLoad(loadToApply, setId)

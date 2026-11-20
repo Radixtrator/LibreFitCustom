@@ -20,10 +20,23 @@ import org.librefit.models.Weight
  * exercise has a [org.librefit.db.entity.Exercise.weightIncrement] configured and every set of the
  * previous session was completed without being marked as [org.librefit.db.entity.Set.failed].
  * Refer to [org.librefit.util.WeightProgression].
+ * @property isAmrap Whether the set was an AMRAP one in the previous session. Refer to
+ * [org.librefit.db.entity.Set.isAmrap].
+ * @property targetReps The repetitions the set was planned for in the previous session. Refer to
+ * [org.librefit.db.entity.Set.targetReps].
  */
 data class PreviousPerformanceSet(
     val reps: Int = 0,
     val load: Weight = Weight.zero(),
     val time: Int = 0,
-    val suggestedLoad: Weight? = null
-)
+    val suggestedLoad: Weight? = null,
+    val isAmrap: Boolean = false,
+    val targetReps: Int = 0
+) {
+    /**
+     * The repetitions to plan when this performance is applied to a set. An AMRAP set is planned for
+     * its target again, since what was reached by going to the limit is not a plan to repeat.
+     */
+    val repsToApply: Int
+        get() = if (isAmrap && targetReps > 0) targetReps else reps
+}
