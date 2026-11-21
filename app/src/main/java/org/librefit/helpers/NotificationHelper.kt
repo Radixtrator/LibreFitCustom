@@ -15,6 +15,7 @@ import android.app.PendingIntent
 import android.content.Context
 import android.content.Intent
 import android.media.AudioAttributes
+import android.os.SystemClock
 import androidx.core.app.NotificationCompat
 import androidx.core.net.toUri
 import org.librefit.R
@@ -149,6 +150,7 @@ class NotificationHelper(
         isStopwatchPaused: Boolean,
         restTime: Int = 0,
         initialRestTime: Int = 0,
+        restTimerEnd: Long = 0L,
     ) {
         val builder = workoutNotificationBuilder
 
@@ -174,18 +176,17 @@ class NotificationHelper(
         val isResting = restTime != 0 && initialRestTime != 0
 
         if (isResting) {
-            applyRestTimerLiveUpdate(builder, restTime, initialRestTime)
+            applyRestTimerLiveUpdate(builder, restTimerEnd, initialRestTime)
         } else {
             applyWorkoutLiveUpdate(builder, timeInSeconds, isStopwatchPaused)
         }
 
+        // The remaining rest and the elapsed time are shown by the chronometer next to the title,
+        // refer to applyRestTimerLiveUpdate and applyWorkoutLiveUpdate, so the title does not
+        // repeat them. Only a paused workout, which has no chronometer, writes its time out
         if (isResting) {
             builder
-                .setContentTitle(
-                    appContext.getString(R.string.rest) + ": " + formatTime(restTime - 1).substring(
-                        startIndex = 3
-                    )
-                )
+                .setContentTitle(appContext.getString(R.string.rest))
                 .setContentText(
                     appContext.getString(R.string.time) + ": " + formatTime(
                         timeInSeconds
@@ -208,9 +209,13 @@ class NotificationHelper(
         } else {
             builder
                 .setContentTitle(
-                    appContext.getString(R.string.elapsed_time) + ": " + formatTime(
-                        timeInSeconds
-                    )
+                    if (isStopwatchPaused) {
+                        appContext.getString(R.string.elapsed_time) + ": " + formatTime(
+                            timeInSeconds
+                        )
+                    } else {
+                        appContext.getString(R.string.elapsed_time)
+                    }
                 )
                 .setContentText("")
         }
@@ -234,14 +239,17 @@ class NotificationHelper(
      * progress bar and the promotion request is ignored.
      *
      * The remaining time is shown as a count-down chronometer, so the chip and the Now Bar keep
-     * ticking even when the system throttles the per-second updates.
+     * ticking even when the system throttles the per-second updates. It counts down to
+     * [restTimerEnd], the [SystemClock.elapsedRealtime] at which the rest ends, so it stays in step
+     * with the rest timer instead of jumping at every update.
      */
     private fun applyRestTimerLiveUpdate(
         builder: NotificationCompat.Builder,
-        restTime: Int,
+        restTimerEnd: Long,
         initialRestTime: Int,
     ) {
-        val remainingSeconds = (restTime - 1).coerceAtLeast(0)
+        val remainingMillis = (restTimerEnd - SystemClock.elapsedRealtime()).coerceAtLeast(0)
+        val remainingSeconds = ((remainingMillis + 999) / 1000).toInt()
         // Adding ten seconds can push the remaining time past the initial one
         val totalSeconds = maxOf(initialRestTime, remainingSeconds, 1)
         val primaryColor = appContext.getColor(R.color.md_theme_primary)
@@ -260,7 +268,7 @@ class NotificationHelper(
             )
             .setRequestPromotedOngoing(true)
             .setShowWhen(true)
-            .setWhen(System.currentTimeMillis() + remainingSeconds * 1000L)
+            .setWhen(System.currentTimeMillis() + remainingMillis)
             .setUsesChronometer(true)
             .setChronometerCountDown(true)
     }

@@ -237,7 +237,8 @@ class WorkoutService : Service() {
                     timeElapsed.value,
                     isStopwatchPaused.value,
                     restTime.value,
-                    initialRestTime
+                    initialRestTime,
+                    restTimerEnd
                 )
             }
         }
@@ -250,7 +251,8 @@ class WorkoutService : Service() {
             timeElapsed.value,
             isStopwatchPaused.value,
             restTime.value,
-            initialRestTime
+            initialRestTime,
+            restTimerEnd
         )
     }
 
