@@ -220,7 +220,7 @@ class WorkoutScreenViewModel(
                     )
 
                     SetMode.DURATION -> PreviousPerformanceSet(time = time)
-                }
+                }.copy(failed = previousSet?.failed == true)
 
             }
         }

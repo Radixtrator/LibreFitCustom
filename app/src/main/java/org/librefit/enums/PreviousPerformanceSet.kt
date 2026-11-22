@@ -24,6 +24,8 @@ import org.librefit.models.Weight
  * [org.librefit.db.entity.Set.isAmrap].
  * @property targetReps The repetitions the set was planned for in the previous session. Refer to
  * [org.librefit.db.entity.Set.targetReps].
+ * @property failed Whether the set was marked as missed reps in the previous session. Refer to
+ * [org.librefit.db.entity.Set.failed].
  */
 data class PreviousPerformanceSet(
     val reps: Int = 0,
@@ -31,7 +33,8 @@ data class PreviousPerformanceSet(
     val time: Int = 0,
     val suggestedLoad: Weight? = null,
     val isAmrap: Boolean = false,
-    val targetReps: Int = 0
+    val targetReps: Int = 0,
+    val failed: Boolean = false
 ) {
     /**
      * The repetitions to plan when this performance is applied to a set. An AMRAP set is planned for
