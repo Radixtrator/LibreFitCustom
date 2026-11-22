@@ -9,7 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
--
+- The previous performance of a set that was marked as missed reps last session is shown in red
 
 ### Changed
 

@@ -1575,9 +1575,17 @@ private fun Set(
             }
 
             previousSet?.let { values ->
+                // A set failed last time is tinted, so it is clear which set held the load back
+                val missedRepsDescription = stringResource(R.string.missed_reps)
                 TextButton(
                     onClick = { applyPreviousSet(set.id) },
-                    modifier = Modifier.wrapContentWidth()
+                    modifier = Modifier
+                        .wrapContentWidth()
+                        .then(
+                            if (values.failed) {
+                                Modifier.semantics { stateDescription = missedRepsDescription }
+                            } else Modifier
+                        )
                 ) {
                     val (previousReps, previousLoad, previousTime) = values
                     val text = when (setMode) {
@@ -1590,7 +1598,11 @@ private fun Set(
                     Column(horizontalAlignment = Alignment.CenterHorizontally) {
                         Text(
                             text = text,
-                            color = contentColor,
+                            color = if (values.failed) {
+                                MaterialTheme.colorScheme.error
+                            } else {
+                                contentColor
+                            },
                             textAlign = TextAlign.Center,
                         )
                         // The last session was fully completed, so the load goes up this time
