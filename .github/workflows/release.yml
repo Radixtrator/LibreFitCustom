@@ -1,9 +1,20 @@
 name: Release
 on:
+  # Run it from the Actions tab (Release > Run workflow). With a tag, it builds the chosen branch,
+  # creates the tag on it and publishes the release. Without one, it only builds a test APK.
   workflow_dispatch:
+    inputs:
+      tag:
+        description: 'Tag to release, e.g. v0.5.0-custom.2 (empty: test build only)'
+        required: false
+        default: ''
   push:
     tags:
       - 'v*' # Triggers only pushing a tag like v1.0.0 or v0.5.0-custom.1
+
+env:
+  # The tag pushed, or the one asked for when run by hand. Empty for a test build
+  RELEASE_TAG: ${{ startsWith(github.ref, 'refs/tags/') && github.ref_name || inputs.tag }}
 
 # Repository secrets used to sign the APK (Settings > Secrets and variables > Actions):
 # - KEYSTORE_BASE64: the release keystore, base64 encoded (`base64 -w0 release.jks`)
@@ -21,6 +32,15 @@ jobs:
     steps:
       - name: Check out code
         uses: actions/checkout@v7
+
+      - name: Check the version matches the tag
+        if: ${{ env.RELEASE_TAG != '' }}
+        run: |
+          VERSION_NAME=$(sed -n 's/^ *versionName = "\(.*\)"$/\1/p' app/build.gradle.kts)
+          if [ "v$VERSION_NAME" != "$RELEASE_TAG" ]; then
+            echo "::error::The tag $RELEASE_TAG does not match versionName $VERSION_NAME in app/build.gradle.kts."
+            exit 1
+          fi
 
       - name: Check signing secrets
         env:
@@ -89,7 +109,7 @@ jobs:
 
       # This is just for testing the manual run
       - name: Upload artifacts if not releasing
-        if: ${{ !startsWith(github.ref, 'refs/tags/') }}
+        if: ${{ env.RELEASE_TAG == '' }}
         uses: actions/upload-artifact@v7
         with:
           path: app/build/outputs/apk/release/LibreFit.apk
@@ -100,11 +120,14 @@ jobs:
         id: extract_notes
         uses: ffurrer2/extract-release-notes@v2
 
+      # When run by hand, the tag does not exist yet and is created on the commit just built
       - name: Create release
         uses: softprops/action-gh-release@v2
-        if: startsWith(github.ref, 'refs/tags/')
+        if: ${{ env.RELEASE_TAG != '' }}
         with:
-          name: LibreFit ${{ github.ref_name }}
+          tag_name: ${{ env.RELEASE_TAG }}
+          target_commitish: ${{ github.sha }}
+          name: LibreFit ${{ env.RELEASE_TAG }}
           files: app/build/outputs/apk/release/LibreFit.apk
           body: ${{ steps.extract_notes.outputs.release_notes }}
           append_body: true # List new contributors
