@@ -9,6 +9,28 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+-
+
+### Changed
+
+-
+
+### Deprecated
+
+-
+
+### Removed
+
+-
+
+### Fixed
+
+-
+
+## [0.5.0-custom.2] - 2026-11-22
+
+### Added
+
 - The previous performance of a set that was marked as missed reps last session is shown in red
 - New (12) exercises [#132](https://github.com/LibreFitOrg/LibreFit/pull/132)
 
@@ -26,7 +48,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
--
+- Rest time shown twice in the workout notification
 
 ## [0.5.0-custom.1] - 2026-11-20
 
