@@ -39,7 +39,9 @@ jobs:
       - name: Run lint
         run: ./gradlew lintDebug
 
+      # The tests run even when lint fails, so a lint failure does not hide a failing test
       - name: Run unit tests
+        if: ${{ !cancelled() }}
         run: ./gradlew testDebugUnitTest
 
       - name: Upload Test & Lint Reports
