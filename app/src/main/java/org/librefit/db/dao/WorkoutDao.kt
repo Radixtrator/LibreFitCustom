@@ -21,6 +21,7 @@ import org.librefit.db.entity.Workout
 import org.librefit.db.relations.ExerciseWithSets
 import org.librefit.db.relations.WorkoutWithExercisesAndSets
 import org.librefit.enums.WorkoutState
+import org.librefit.models.BackupWorkout
 import java.time.LocalDateTime
 
 @Dao
@@ -242,6 +243,37 @@ interface WorkoutDao {
             }
         }
         return workoutId
+    }
+
+    /**
+     * Adds the [workouts] of a backup, with new ids for them, their exercises and their sets, so
+     * they can never overwrite what is in the database. Unlike [addWorkoutWithExercisesAndSets], the
+     * dates are kept as they are in the backup. The routines are placed after the existing ones.
+     * Refer to [org.librefit.helpers.WorkoutBackup].
+     */
+    @Transaction
+    suspend fun importWorkouts(workouts: List<BackupWorkout>) {
+        var nextRoutinePosition = (getMaxPositionByState(WorkoutState.ROUTINE) ?: -1) + 1
+
+        workouts.forEach { backupWorkout ->
+            val workout = backupWorkout.workout
+            val workoutId = addWorkout(
+                if (workout.state == WorkoutState.ROUTINE) {
+                    workout.copy(id = 0, position = nextRoutinePosition++)
+                } else {
+                    workout.copy(id = 0)
+                }
+            )
+
+            backupWorkout.exercises.forEach { backupExercise ->
+                val exerciseId = addExercise(
+                    backupExercise.exercise.copy(id = 0, workoutId = workoutId)
+                )
+                backupExercise.sets.forEach { set ->
+                    addSet(set.copy(id = 0, exerciseId = exerciseId))
+                }
+            }
+        }
     }
 
     /**

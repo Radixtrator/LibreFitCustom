@@ -10,6 +10,7 @@ package org.librefit.db.repository
 
 import org.librefit.db.dao.MeasurementDao
 import org.librefit.db.entity.Measurement
+import org.librefit.helpers.WorkoutBackup
 import java.time.LocalDateTime
 
 /**
@@ -24,19 +25,23 @@ import java.time.LocalDateTime
  */
 class MeasurementRepository(
     private val measurementDao: MeasurementDao,
+    private val workoutBackup: WorkoutBackup? = null,
 ) {
     val measurements = measurementDao.getAllMeasurements()
 
     suspend fun upsertMeasurement(measurement: Measurement) {
         measurementDao.upsertMeasurement(measurement)
+        workoutBackup?.onDataChanged()
     }
 
     suspend fun deleteMeasurement(measurement: Measurement) {
         measurementDao.deleteMeasurement(measurement)
+        workoutBackup?.onDataChanged()
     }
 
     suspend fun deleteById(id: Long) {
         measurementDao.deleteById(id)
+        workoutBackup?.onDataChanged()
     }
 
     suspend fun getLastMeasurementByCutoff(cutoff: LocalDateTime): Measurement? {

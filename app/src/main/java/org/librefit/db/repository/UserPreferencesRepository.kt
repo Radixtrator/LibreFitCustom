@@ -56,6 +56,9 @@ private val DEFAULT_BAR_WEIGHT_KEY = doublePreferencesKey("default_bar_weight")
 private val ROUTINE_UPDATE_MODE_KEY = stringPreferencesKey("routine_update_mode")
 private val SHOW_LIBRARY_KEY = booleanPreferencesKey("show_library")
 private val HEALTH_CONNECT_SYNC_KEY = booleanPreferencesKey("health_connect_sync")
+private val AUTO_BACKUP_FOLDER_KEY = stringPreferencesKey("auto_backup_folder")
+private val LAST_AUTO_BACKUP_KEY = longPreferencesKey("last_auto_backup")
+private val AUTO_BACKUP_FAILED_KEY = booleanPreferencesKey("auto_backup_failed")
 /**
  * Central repository managing application-level preferences, including theme, unit systems, and language.
  *
@@ -161,6 +164,36 @@ class UserPreferencesRepository(
      */
     val healthConnectSyncOn: StateFlow<Boolean> = dataStore.data
         .map { preferences -> preferences[HEALTH_CONNECT_SYNC_KEY] == true }
+        .stateIn(
+            scope = applicationScope,
+            started = SharingStarted.Eagerly,
+            initialValue = false
+        )
+
+    /**
+     * The folder chosen for the automatic backups, as a document tree uri, or `null` while they are
+     * off. Refer to [org.librefit.helpers.WorkoutBackup].
+     */
+    val autoBackupFolder: StateFlow<String?> = dataStore.data
+        .map { preferences -> preferences[AUTO_BACKUP_FOLDER_KEY] }
+        .stateIn(
+            scope = applicationScope,
+            started = SharingStarted.Eagerly,
+            initialValue = null
+        )
+
+    /** When the last automatic backup was written, in epoch milliseconds, or `null` if never */
+    val lastAutoBackup: StateFlow<Long?> = dataStore.data
+        .map { preferences -> preferences[LAST_AUTO_BACKUP_KEY] }
+        .stateIn(
+            scope = applicationScope,
+            started = SharingStarted.Eagerly,
+            initialValue = null
+        )
+
+    /** Whether the last automatic backup could not be written, e.g. the folder was deleted */
+    val autoBackupFailed: StateFlow<Boolean> = dataStore.data
+        .map { preferences -> preferences[AUTO_BACKUP_FAILED_KEY] == true }
         .stateIn(
             scope = applicationScope,
             started = SharingStarted.Eagerly,
@@ -340,6 +373,26 @@ class UserPreferencesRepository(
 
     suspend fun saveHealthConnectSyncOn(isOn: Boolean) {
         dataStore.edit { preferences -> preferences[HEALTH_CONNECT_SYNC_KEY] = isOn }
+    }
+
+    /** Saves the folder of the automatic backups, or turns them off with `null` */
+    suspend fun saveAutoBackupFolder(folderUri: String?) {
+        dataStore.edit { preferences ->
+            if (folderUri == null) {
+                preferences.remove(AUTO_BACKUP_FOLDER_KEY)
+            } else {
+                preferences[AUTO_BACKUP_FOLDER_KEY] = folderUri
+            }
+            preferences.remove(AUTO_BACKUP_FAILED_KEY)
+        }
+    }
+
+    /** Records how the last automatic backup went, with [time] in epoch milliseconds */
+    suspend fun saveAutoBackupResult(succeeded: Boolean, time: Long) {
+        dataStore.edit { preferences ->
+            if (succeeded) preferences[LAST_AUTO_BACKUP_KEY] = time
+            preferences[AUTO_BACKUP_FAILED_KEY] = !succeeded
+        }
     }
 
     suspend fun saveShowLibrary(show: Boolean) {
