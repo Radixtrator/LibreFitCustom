@@ -23,6 +23,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalResources
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -56,6 +57,8 @@ fun rememberBackupSettingsState(
     userPreferences: UserPreferencesRepository = koinInject(),
 ): BackupSettingsState {
     val context = LocalContext.current
+    // Strings are read through the resources of the composition, which follow configuration changes
+    val resources = LocalResources.current
     val coroutineScope = rememberCoroutineScope()
 
     val autoBackupFolder by userPreferences.autoBackupFolder.collectAsStateWithLifecycle()
@@ -79,7 +82,7 @@ fun rememberBackupSettingsState(
                     R.string.backup_export_failed
                 }
             )
-            context.toast(context.getString(message))
+            context.toast(resources.getString(message))
         }
     }
 
@@ -90,18 +93,18 @@ fun rememberBackupSettingsState(
         coroutineScope.launch {
             val message = runCatching { workoutBackup.import(uri) }.fold(
                 onSuccess = { plan ->
-                    context.getString(
+                    resources.getString(
                         R.string.backup_imported,
                         plan.completedWorkoutCount,
                         plan.routineCount,
                         plan.measurements.size
                     ) + if (plan.skippedExercises > 0) {
-                        "\n" + context.getString(R.string.backup_imported_skipped, plan.skippedExercises)
+                        "\n" + resources.getString(R.string.backup_imported_skipped, plan.skippedExercises)
                     } else ""
                 },
                 onFailure = {
                     Log.w(TAG, "Could not import the backup", it)
-                    context.getString(R.string.backup_import_failed)
+                    resources.getString(R.string.backup_import_failed)
                 }
             )
             context.toast(message)
@@ -116,7 +119,7 @@ fun rememberBackupSettingsState(
             val written = runCatching { workoutBackup.enableAutomaticBackup(folder) }
                 .onFailure { Log.w(TAG, "Could not turn the automatic backups on", it) }
                 .getOrDefault(false)
-            if (!written) context.toast(context.getString(R.string.automatic_backup_failed_desc))
+            if (!written) context.toast(resources.getString(R.string.automatic_backup_failed_desc))
         }
     }
 
