@@ -39,7 +39,15 @@ jobs:
       - name: Run lint
         run: ./gradlew lintDebug
 
+      # The lint errors, readable in the log without downloading the reports
+      - name: Print lint errors
+        if: ${{ failure() }}
+        run: |
+          grep -h -A3 ": Error:" app/build/intermediates/lint_intermediate_text_report/debug/lintReportDebug/lint-results-debug.txt || true
+
+      # The tests run even when lint fails, so a lint failure does not hide a failing test
       - name: Run unit tests
+        if: ${{ !cancelled() }}
         run: ./gradlew testDebugUnitTest
 
       - name: Upload Test & Lint Reports

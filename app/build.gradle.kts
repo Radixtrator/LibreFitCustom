@@ -34,6 +34,7 @@ android {
 
     lint {
         baseline = file("lint-baseline.xml")
+        lintConfig = file("lint.xml")
         checkGeneratedSources = false
 
         warning += listOf("MissingTranslation")

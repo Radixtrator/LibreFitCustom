@@ -9,7 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
--
+- Backup of the workout history, routines, measurements and custom exercises: export it to a file, import it back without replacing anything, or turn on automatic backups to a folder of your choice, written whenever something changes and kept for 7 days
 
 ### Changed
 

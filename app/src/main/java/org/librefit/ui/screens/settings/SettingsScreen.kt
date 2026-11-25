@@ -200,7 +200,8 @@ fun SettingsScreen(
         showConfirmDialogShowExerciseImages = {
             showConfirmDialogDisplayExerciseImages = true
         },
-        onDismissScrollWhellInputAutomaticallyChange = viewModel::saveDismissScrollWheelInputAutomatically
+        onDismissScrollWhellInputAutomaticallyChange = viewModel::saveDismissScrollWheelInputAutomatically,
+        backupSettings = rememberBackupSettingsState()
     )
 }
 
@@ -234,6 +235,7 @@ private fun SettingsScreenContent(
     onShowExercisesImagesChange: (Boolean) -> Unit,
     showConfirmDialogShowExerciseImages: () -> Unit,
     onDismissScrollWhellInputAutomaticallyChange: (Boolean) -> Unit,
+    backupSettings: BackupSettingsState? = null,
 ) {
     LibreFitScaffold(
         title = AnnotatedString(stringResource(id = R.string.settings)),
@@ -413,6 +415,8 @@ private fun SettingsScreenContent(
                     )
                 }
             }
+
+            backupSettings?.let { backupSettingItems(it) }
         }
     }
 }
@@ -444,7 +448,7 @@ private fun LiveUpdatesSettingItem() {
 
 @OptIn(ExperimentalMaterial3ExpressiveApi::class)
 @Composable
-private fun SettingItem(
+internal fun SettingItem(
     onClick: () -> Unit,
     icon: Painter,
     settingName: String,

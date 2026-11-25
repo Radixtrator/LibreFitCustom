@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="UTF-8"?><!--
+  ~ SPDX-License-Identifier: GPL-3.0-or-later
+  ~ Copyright (c) 2026. The LibreFit Contributors
+  ~
+  ~ LibreFit is subject to additional terms covering author attribution and trademark usage;
+  ~ see the ADDITIONAL_TERMS.md and TRADEMARK_POLICY.md files in the project root.
+  -->
+
+<!-- The KSP output is added to the source sets in build.gradle.kts, so lint takes the code Room
+     generates for the source of the app and checkGeneratedSources does not leave it out. Lint
+     flags it with RestrictedApi errors, since Room's own code calls Room's internal API. -->
+<lint>
+    <issue id="all">
+        <ignore path="build/generated/**" />
+        <ignore regexp=".*[/\\]build[/\\]generated[/\\].*" />
+    </issue>
+</lint>
